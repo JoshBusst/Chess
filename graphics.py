@@ -401,6 +401,7 @@ def main() -> None:
                 case _:
                     pass
 
+        updateScreen()
         sleep(0.01)
 
 
