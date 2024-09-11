@@ -307,26 +307,38 @@ def getArrowGraphic() -> list[p.Surface]:
 
 ### PSL Handles
 
-def movePiecePSLHandle(clickData: list[list[int]]) -> bool:
-    assert(isinstance(clickData[0], list))
-    
-    if not validSquares(clickData): error("Invalid input type. Squares are not valid type")
+def nextTurn() -> None:
+    global turn
+    turn = not turn
 
-    if len(clickData) == 2:
-        if clickData[0] != clickData[1]:
-            movePiece(*clickData)
-            return False
+def movePiecePSLHandle(squares: list[list[int]]) -> bool:
+    assert(isinstance(squares[0], list))
 
-    elif len(clickData) == 4:
-        if clickData[0] == clickData[1] and clickData[2] == clickData[3]:
-            movePiece(clickData[0], clickData[2])
+    quitPSL: bool = True
+    selectedPiece: int = getPiece(*squares[0])
+
+    # break conditions
+    invalidInput: bool = not validSquares(squares) or len(squares) not in [2, 4]
+    selectedWrongPiece: bool = (turn != (pieceColour(selectedPiece) == 'w')) or selectedPiece == EMPTY
+
+    if invalidInput or selectedWrongPiece:
+        print("  Clearing sequence!")
+        psl.clearSequence()
+
+    # input handlers
+    if len(squares) == 2 and squares[0] != squares[1]:
+        if legalMove(squares[0], squares[1]):
+            movePiece(squares[0], squares[1])
+            nextTurn()
         
-        return False
+    elif len(squares) == 4 and (squares[0] == squares[1] and squares[2] == squares[3] and not squares[0] == squares[3]):
+        if legalMove(squares[0], squares[2]):
+            movePiece(squares[0], squares[2])
+            nextTurn()
+    else:
+        quitPSL = False
 
-    print(f"Click data: {clickData}")
-    print(f"Active sequence: {psl.activeSequence}")
-
-    return True
+    return quitPSL
 
 def rClickPSLHandle(clickData: list[list[int]]) -> bool:
     assert(len(clickData) == 2 and isinstance(clickData[0], list))
@@ -339,7 +351,7 @@ def rClickPSLHandle(clickData: list[list[int]]) -> bool:
         else:
             drawArrow(*clickData)
 
-    return False
+    return True
 
 def ldownPSLHandle(clickData: list[list[int]]) -> bool:
     if not validSquares(clickData): error("Square data invalid for ldownPSLHandle")
@@ -347,15 +359,12 @@ def ldownPSLHandle(clickData: list[list[int]]) -> bool:
     clearHighlights()
     pieceHover(*clickData[0])
 
-    return True
+    return False
 
 
 
 ### Main Function(s)
-
-def movePiece(square1: list[int], square2: list[int]) -> bool:
-    cprint(f"Moving {square1} to {square2}")
-    
+def legalMove(square1: list[int], square2: list[int]) -> bool:
     # check there is a piece on square1
     # check square 2 is not occupied by piece of same colour
     # check that square is a possible piece move
@@ -364,13 +373,18 @@ def movePiece(square1: list[int], square2: list[int]) -> bool:
     piece1 = getPiece(*square1)
     piece2 = getPiece(*square2)
 
-    if pieceStr(piece1) == EMPTY: return
-    if pieceColour(piece1) == pieceColour(piece2): return
-    if not movePossible(piece1, square1, square2): return
+    isEmpty: bool = piece1 == EMPTY
+    sameColour: bool = pieceColour(piece1) == pieceColour(piece2)
+    notPossible = not movePossible(piece1, square1, square2)
 
-    cprint(f"{pieceStr(piece1)} takes {pieceStr(piece2)}")
+    return not any([isEmpty, sameColour, notPossible])
+
+# moves a piece. Does NOT check for legality
+def movePiece(square1: list[int], square2: list[int]) -> bool:
+    cprint(f"Moving {square1} to {square2}")
+
+    board[*square2] = getPiece(*square1)
     board[*square1] = EMPTY
-    board[*square2] = piece1
 
 def initBoard() -> numpy.array:
     board = numpy.ones([8,8], int)*EMPTY
@@ -415,6 +429,7 @@ EMPTY = len(PIECE_CODES)
 
 pieceImages = loadImages()
 board: numpy.array = initBoard()
+turn: bool = True
 
 LDOWN = 0
 LUP = 1

@@ -31,7 +31,6 @@ class PSL_mouse:
         self.activeSequence: list[str] = []
         self.prev: tuple[bool] = (0,0,0)
         self.partialsData: dict[int, any] = {}
-        self.globalReset: bool = False
 
     def validSequence(self, sequence: list[str]):
         if not isinstance(sequence, list):
@@ -54,7 +53,6 @@ class PSL_mouse:
         self.activeSequence.clear()
         self.partialsData.clear()
         self.prev = (0,0,0)
-        self.globalReset = False
 
     def getButtonStr(self, buttonsPressed: tuple[bool]) -> str:
         # determine the button that triggered this interrupt
@@ -98,8 +96,6 @@ class PSL_mouse:
         reset = True
 
         for i, [sequence, activation, _] in enumerate(self.sequences):
-            if self.globalReset: self.clearSequence(); return
-
             overSize: bool = len(self.activeSequence) > len(sequence)
 
             if overSize:
@@ -117,14 +113,15 @@ class PSL_mouse:
                     reset = False
                 else:
                     cprint(f"Full sequence match! Running function {activation}")
-                    continueRunning: bool = True
+                    quit: bool = True
 
                     if i in self.partialsData.keys():
-                        continueRunning = activation(self.partialsData[i])
+                        quit = activation(self.partialsData[i])
                     else:
-                        continueRunning = activation()
+                        quit = activation()
 
-                    if isinstance(continueRunning, bool) and not continueRunning:
+                    # ensure integrity of the reset varaible
+                    if isinstance(quit, bool) and quit:
                         reset = True
                         break
 

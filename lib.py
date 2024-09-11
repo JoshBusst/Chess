@@ -2,7 +2,7 @@ from numbers import Number
 
 
 
-VERBOSE = True
+VERBOSE = False
 
 
 
