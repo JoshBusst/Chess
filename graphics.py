@@ -68,13 +68,14 @@ def loadImages() -> list[p.Surface]:
 
     return images
 
-def getMouseSquare() -> list[int]:
-    [i, j] = p.mouse.get_pos()
-
-    row = i // SQUARE_SIZE
-    col = j // SQUARE_SIZE
+def pos2Square(pos: tuple[int]) -> list[int]:
+    row = pos[0] // SQUARE_SIZE
+    col = pos[1] // SQUARE_SIZE
 
     return [col, row]
+
+def getMouseSquare() -> list[int]:
+    return pos2Square(p.mouse.get_pos())
 
 def movePossible(piece: int, square1: list[int], square2: list[int]) -> bool:
     return square2 in possibleMoves(piece, square1)
@@ -239,10 +240,14 @@ def drawHighlights() -> None:
 
         drawSquare(row, col, highlightColour)
 
+def drawSprite(image: p.Surface, i: int, j: int) -> None:
+    screen.blit(image, p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE))
+
 def drawPiece(pieceInt: int, row: int, col: int) -> None:
     i = row*SQUARE_SIZE
     j = col*SQUARE_SIZE
-    screen.blit(pieceImages[pieceInt], p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE))
+
+    drawSprite(pieceImages[pieceInt], i, j)
 
 def drawPieces() -> None:
     for row in range(8):
@@ -303,6 +308,16 @@ def getArrowGraphic() -> list[p.Surface]:
 
     return arrowHead, arrowBody
 
+def move_animate(image: p.Surface, square1: list[int], square2: list[int], dt=1, numPoints=20):
+    direction = (p.math.Vector2(square2) - square1)/numPoints
+    points = [p.math.Vector2(square1) + i*direction for i in range(numPoints)]
+    frameRate = int(numPoints/dt)
+
+    for i in range(numPoints):
+        clock.tick(frameRate)
+        image_rect = image.get_rect(center = points[i])
+        drawSquare(pos2Square(points[i]))
+
 
 
 ### PSL Handles
@@ -324,6 +339,7 @@ def movePiecePSLHandle(squares: list[list[int]]) -> bool:
     if invalidInput or selectedWrongPiece:
         print("  Clearing sequence!")
         psl.clearSequence()
+        return True
 
     # input handlers
     if len(squares) == 2 and squares[0] != squares[1]:
@@ -381,8 +397,6 @@ def legalMove(square1: list[int], square2: list[int]) -> bool:
 
 # moves a piece. Does NOT check for legality
 def movePiece(square1: list[int], square2: list[int]) -> bool:
-    cprint(f"Moving {square1} to {square2}")
-
     board[*square2] = getPiece(*square1)
     board[*square1] = EMPTY
 
@@ -416,7 +430,7 @@ def main() -> None:
                     pass
 
         updateScreen()
-        sleep(0.01)
+        clock.tick(TARGET_FPS)
 
 
 
@@ -427,7 +441,7 @@ PIECE_CODES = ["wR", "wN", "wB", "wQ", "wK", "wP", "bR", "bN", "bB", "bQ", "bK",
 MOVE_FUNCTIONS: dict[str, callable] = {"R": rook, "N": knight, "B": bishop, "Q": queen, "K": king, "P": pawn}
 EMPTY = len(PIECE_CODES)
 
-pieceImages = loadImages()
+pieceImages: list[p.Surface] = loadImages()
 board: numpy.array = initBoard()
 turn: bool = True
 
@@ -443,6 +457,8 @@ HIGHLIGHT_PRIMARY: tuple = (255,100,100)
 HIGHLIGHT_SECONDARY: tuple = (252,247,189)
 HIGHLIGHT_INTENSITY = 0.8
 
+TARGET_FPS = 30
+
 squares_highlighted: list[list] = []
 drawn_arrows: list[list] = []
 redraw_squares: list[list] = []
@@ -450,6 +466,7 @@ redraw_squares: list[list] = []
 
 p.init()
 screen = p.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+clock = p.time.Clock()
 psl = PSL_mouse()
 
 [arrowHead, arrowBody] = getArrowGraphic()
