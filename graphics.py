@@ -237,23 +237,23 @@ def pawn(row: int, col: int) -> list[list[int]]:
 def drawBoard() -> None:
     for row in range(8):
         for col in range(8):
-            drawSquare(row, col, BOARD_COLOURS[(row + col)%2])
+            drawSquare(staticScreen, row, col, BOARD_COLOURS[(row + col)%2])
 
 def drawHighlights() -> None:
     for row, col in squares_highlighted:
         squareColour: tuple = getSquareColour(row, col)
         highlightColour: tuple = blendColours(squareColour, HIGHLIGHT_PRIMARY, opacity=HIGHLIGHT_INTENSITY)
 
-        drawSquare(row, col, highlightColour)
+        drawSquare(staticScreen, row, col, highlightColour)
 
-def drawSprite(image: p.Surface, i: int, j: int) -> None:
+def drawSprite(screen: p.Surface, image: p.Surface, i: int, j: int) -> None:
     screen.blit(image, p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE))
 
-def drawPiece(pieceInt: int, row: int, col: int) -> None:
+def drawPiece(screen: p.Surface, pieceInt: int, row: int, col: int) -> None:
     i = row*SQUARE_SIZE
     j = col*SQUARE_SIZE
 
-    drawSprite(pieceImages[pieceInt], i, j)
+    drawSprite(screen, pieceImages[pieceInt], i, j)
 
 def drawPieces() -> None:
     for row in range(8):
@@ -261,9 +261,9 @@ def drawPieces() -> None:
             piece = board[row,col]
 
             if piece != EMPTY:
-                drawPiece(piece, row, col)
+                drawPiece(staticScreen, piece, row, col)
 
-def drawSquare(row: int, col: int, colour: p.Color) -> None:
+def drawSquare(screen: p.Surface, row: int, col: int, colour: p.Color) -> None:
     i = col*SQUARE_SIZE
     j = row*SQUARE_SIZE
 
@@ -287,14 +287,16 @@ def drawArrow(square1: list[int], square2: list[int]) -> None:
     scaled_rotated_body = p.transform.rotate(p.transform.scale_by(arrowBody, (length,1)), angle)
     rotated_head = p.transform.rotate(arrowHead, angle)
 
-    screen.blit(rotated_head, (10,100))
-    screen.blit(scaled_rotated_body, (10,10))
+    staticScreen.blit(rotated_head, (10,100))
+    staticScreen.blit(scaled_rotated_body, (10,10))
 
 def updateScreen() -> None:
     drawBoard()
     drawHighlights()
     drawPieces()
 
+    win.blit(staticScreen, (0,0))
+    win.blit(animationScreen, (0,0))
     p.display.update()
 
 def pieceHover(row: int, col: int) -> None:
@@ -314,6 +316,9 @@ def getArrowGraphic() -> list[p.Surface]:
 
     return arrowHead, arrowBody
 
+def clearScreen(screen: p.Surface) -> None:
+    screen.fill(p.Color(0,0,0,0))
+
 def move_animate(image: p.Surface, square1: list[int], square2: list[int], dt=0.1, numPoints=20):
     point1 = square2pos(*square1)
     point2 = square2pos(*square2)
@@ -323,14 +328,20 @@ def move_animate(image: p.Surface, square1: list[int], square2: list[int], dt=0.
     frameRate = int(numPoints/dt)*2
 
     for i in range(numPoints):
-        ### !!! Must be updated to work more smoothly. Use a square_update function to update individual square and only update those that are touched !!! ###
-        updateScreen()
+        clearScreen(animationScreen)
 
         # hide the piece we are animating
-        drawSquare(*square1, getSquareColour(*square1))
-        drawSprite(image, *points[i])
+        drawSquare(staticScreen, *square1, getSquareColour(*square1))
+        drawSprite(animationScreen, image, *points[i])
+
+        win.blit(staticScreen, (0,0))
+        win.blit(animationScreen, (0,0))
         p.display.update()
+
         clock.tick(frameRate)
+
+    # animation is done. Clear the animation layer
+    clearScreen(animationScreen)
 
 
 
@@ -475,7 +486,11 @@ redraw_squares: list[list] = []
 
 
 p.init()
-screen = p.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+win = p.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+staticScreen = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+animationScreen = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
+animationScreen.convert_alpha()
+
 clock = p.time.Clock()
 psl = PSL_mouse()
 
