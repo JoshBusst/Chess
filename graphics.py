@@ -68,14 +68,20 @@ def loadImages() -> list[p.Surface]:
 
     return images
 
-def pos2Square(pos: tuple[int]) -> list[int]:
-    row = pos[0] // SQUARE_SIZE
-    col = pos[1] // SQUARE_SIZE
+def pos2square(pos: tuple[int]) -> list[int]:
+    row: int = pos[0] // SQUARE_SIZE
+    col: int = pos[1] // SQUARE_SIZE
 
     return [col, row]
 
+def square2pos(row: int, col: int) -> list[int]:
+    i: int = row * SQUARE_SIZE
+    j: int = col * SQUARE_SIZE
+
+    return [i, j]
+
 def getMouseSquare() -> list[int]:
-    return pos2Square(p.mouse.get_pos())
+    return pos2square(p.mouse.get_pos())
 
 def movePossible(piece: int, square1: list[int], square2: list[int]) -> bool:
     return square2 in possibleMoves(piece, square1)
@@ -308,15 +314,23 @@ def getArrowGraphic() -> list[p.Surface]:
 
     return arrowHead, arrowBody
 
-def move_animate(image: p.Surface, square1: list[int], square2: list[int], dt=1, numPoints=20):
-    direction = (p.math.Vector2(square2) - square1)/numPoints
-    points = [p.math.Vector2(square1) + i*direction for i in range(numPoints)]
-    frameRate = int(numPoints/dt)
+def move_animate(image: p.Surface, square1: list[int], square2: list[int], dt=0.1, numPoints=20):
+    point1 = square2pos(*square1)
+    point2 = square2pos(*square2)
+    
+    direction = (p.math.Vector2(point2) - point1)/numPoints
+    points = [p.math.Vector2(point1) + i*direction for i in range(numPoints)]
+    frameRate = int(numPoints/dt)*2
 
     for i in range(numPoints):
+        ### !!! Must be updated to work more smoothly. Use a square_update function to update individual square and only update those that are touched !!! ###
+        updateScreen()
+
+        # hide the piece we are animating
+        drawSquare(*square1, getSquareColour(*square1))
+        drawSprite(image, *points[i])
+        p.display.update()
         clock.tick(frameRate)
-        image_rect = image.get_rect(center = points[i])
-        drawSquare(pos2Square(points[i]))
 
 
 
@@ -343,12 +357,13 @@ def movePiecePSLHandle(squares: list[list[int]]) -> bool:
 
     # input handlers
     if len(squares) == 2 and squares[0] != squares[1]:
-        if legalMove(squares[0], squares[1]):
-            movePiece(squares[0], squares[1])
+        if legalMove(*squares[0:2]):
+            movePiece(*squares[0:2])
             nextTurn()
         
     elif len(squares) == 4 and (squares[0] == squares[1] and squares[2] == squares[3] and not squares[0] == squares[3]):
         if legalMove(squares[0], squares[2]):
+            move_animate(pieceImages[selectedPiece], squares[0], squares[3])
             movePiece(squares[0], squares[2])
             nextTurn()
     else:
@@ -381,11 +396,6 @@ def ldownPSLHandle(clickData: list[list[int]]) -> bool:
 
 ### Main Function(s)
 def legalMove(square1: list[int], square2: list[int]) -> bool:
-    # check there is a piece on square1
-    # check square 2 is not occupied by piece of same colour
-    # check that square is a possible piece move
-    # psuedo move the piece and check if board state is valid. If not, do not finalise piece move
-
     piece1 = getPiece(*square1)
     piece2 = getPiece(*square2)
 
@@ -473,7 +483,6 @@ psl = PSL_mouse()
 
 
 if __name__ == "__main__":
-    print("This is the turns branch!")
     main()
 
     
