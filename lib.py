@@ -1,5 +1,5 @@
 from numbers import Number
-
+import pygame as p
 
 
 VERBOSE = False
@@ -25,3 +25,13 @@ def even(num: Number) -> bool:
 
 def clip(x: Number, low: Number, high: Number) -> Number:
     return min(max(x, low), high)
+
+def loadImage(imagePath: str, size: tuple[int]=(100,100)) -> p.Surface:
+    return p.transform.scale(p.image.load(imagePath), size)
+
+# makes colour1 appear more like colour2 by a percentage defined by opacity
+def blendColours(colour1: tuple, colour2: tuple, opacity: float=0.5) -> tuple:
+    return (int((1 - opacity) * colour1[0] + opacity * colour2[0]),  # R component
+            int((1 - opacity) * colour1[1] + opacity * colour2[1]),  # G component
+            int((1 - opacity) * colour1[2] + opacity * colour2[2]),   # B component
+    )

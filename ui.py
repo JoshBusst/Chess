@@ -70,6 +70,8 @@ class PSL_mouse:
 
         triggerButtonStr: str = self.getButtonStr(buttonsPressed)
         self.activeSequence.append(triggerButtonStr)
+        
+        print(f"Logging new click: {triggerButtonStr}")
 
         self.match()
         self.prev = buttonsPressed
@@ -112,7 +114,6 @@ class PSL_mouse:
                 if partialMatch:
                     reset = False
                 else:
-                    cprint(f"Full sequence match! Running function {activation}")
                     quit: bool = True
 
                     if i in self.partialsData.keys():
@@ -125,8 +126,6 @@ class PSL_mouse:
                         reset = True
                         break
 
-        if reset:
-            cprint("No more partial sequence matches! Sequence resetting.")
-            self.clearSequence()
+        if reset: self.clearSequence()
 
 
