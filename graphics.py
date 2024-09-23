@@ -2,7 +2,8 @@
 import pygame as p
 import numpy, copy, random, time
 from lib import *
-from math import sqrt, atan2 as ang
+from math import sqrt, cos, sin, atan2
+from numpy import degrees
 
 
 
@@ -81,16 +82,52 @@ def clearHighlights() -> None:
     drawBoard()
 
 def drawArrow(square1: list[int], square2: list[int]) -> None:
-    print(f"Drawing arrow from {square1} to {square2}!")
-    diff_vector: numpy.array = numpy.subtract(square1, square2)
-    length: float = sqrt(diff_vector.dot(diff_vector))
-    angle: float = ang(diff_vector[1], diff_vector[0])
+    [body_i, body_j] = square2pos(*square1)
+    [head_i, head_j] = square2pos(*square2)
     
-    # scaled_rotated_body = p.transform.rotate(p.transform.scale_by(arrowBody, (length,1)), angle)
-    # rotated_head = p.transform.rotate(arrowHead, angle)
+    # Calculate the angle of the line
+    angle = atan2(body_i - head_i, body_j - head_j)
+    width = 30
 
-    # staticScreen.blit(rotated_head, (10,100))
-    # staticScreen.blit(scaled_rotated_body, (10,10))
+    # Find the perpendicular vector to the line
+    perp_x = sin(angle) * width / 2
+    perp_y = -cos(angle) * width / 2
+
+    v1 = numpy.array((body_i, body_j))
+    v2 = numpy.array((head_i, head_j))
+
+    offset = 40
+
+    u = v2 - v1
+    umag = numpy.sqrt(u.dot(u))
+    uhat = u/umag
+
+    start = v1 + offset*uhat + SQUARE_SIZE/2
+    end = v2 - offset*uhat + SQUARE_SIZE/2
+
+    # Calculate the four corners of the rectangle (thick line)
+    points = numpy.array([
+        (start[1] - perp_x, start[0] - perp_y),  # Corner 1
+        (start[1] + perp_x, start[0] + perp_y),  # Corner 2
+        (end[1] + perp_x, end[0] + perp_y),      # Corner 3
+        (end[1] - perp_x, end[0] - perp_y)       # Corner 4
+    ])
+
+    # points = points + SQUARE_SIZE/2
+    
+    head_x: int = SQUARE_SIZE*2/6
+    head_y: int = SQUARE_SIZE/3
+    arrowHead: p.Surface = p.Surface((head_x, head_y), p.SRCALPHA)
+    p.draw.polygon(arrowHead, HIGHLIGHT_SECONDARY, ((0,0),(0,head_y),(head_x,head_y/2),(0,0)))
+
+    # Draw the polygon (rectangle) to represent the thick line
+    p.draw.polygon(arrowLayer, HIGHLIGHT_SECONDARY, points)
+    rotated_head = p.transform.rotate(arrowHead, 180 - degrees(angle))
+    head_rect = rotated_head.get_rect(center=(head_j + SQUARE_SIZE/2, head_i + SQUARE_SIZE/2))
+
+    
+    arrowLayer.blit(rotated_head, head_rect)
+    # arrowLayer.blit(rotated_body, body_rect)
 
 def updateScreen() -> None:
     for layer in layers: win.blit(layer, (0,0))
@@ -167,7 +204,7 @@ HIGHLIGHT_INTENSITY = 0.8
 TRANSPARENT: p.Color = p.Color(0,0,0,0)
 
 pieceImages: list[p.Surface] = loadImages()
-
+arrowHead, arrowBody = getArrowGraphic()
 clock = p.time.Clock()
 
 p.init()

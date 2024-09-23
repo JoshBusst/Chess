@@ -5,6 +5,13 @@ from lib import *
 from graphics import *
 
 
+# fix highlight squares
+# add draw arrows
+# add special move functionality
+# add king check logic (ie block illegal check moves)
+# occasional glitch in piece animations. Unsure of source
+
+
 
 ### Miscellaneous helper functions
 
