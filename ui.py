@@ -49,7 +49,6 @@ class PSL_mouse:
             error(f"Sequence addition is invalid! Sequence must be of type list[str] and have values within:\n{self.BUTTONS['mouse']}...")
         
     def clearSequence(self) -> None:
-        cprint("Clearing sequence data...")
         self.activeSequence.clear()
         self.partialsData.clear()
         self.prev = (0,0,0)
@@ -62,7 +61,7 @@ class PSL_mouse:
         tButtonState: bool = buttonsPressed[ind]
 
         return self.BUTTONS['mouse'][2*ind + int(tButtonState)]
-    
+
     def addClick(self, buttonsPressed: tuple[bool]) -> None:
         if buttonsPressed == self.prev: # if held or released twice consecutively. Negates mouse scroll wheel triggers
             self.clearSequence()
@@ -70,8 +69,6 @@ class PSL_mouse:
 
         triggerButtonStr: str = self.getButtonStr(buttonsPressed)
         self.activeSequence.append(triggerButtonStr)
-        
-        print(f"Logging new click: {triggerButtonStr}")
 
         self.match()
         self.prev = buttonsPressed

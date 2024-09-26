@@ -35,8 +35,18 @@ def square2pos(row: int, col: int) -> list[int]:
 def squareIsDark(row: int, col: int) -> bool:
     return not(even(row) == even(col))
 
+def squareNumber(row: int, col: int) -> int:
+    return row*8 + col
+
+def arrowID(square1: list[int], square2: list[int]) -> str:
+    return str(squareNumber(*square1)) + str(squareNumber(*square2))
+
 def getSquareColour(row: int, col: int) -> tuple:
     return BOARD_COLOURS[squareIsDark(row, col)]
+
+def clearSquareIJ(layer: p.Surface, i: int, j: int) -> None:
+    erase_rect = p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE)
+    layer.fill(TRANSPARENT, erase_rect)
 
 def drawBoard() -> None:
     for row in range(8):
@@ -45,10 +55,6 @@ def drawBoard() -> None:
 
 def drawSprite(layer: p.Surface, image: p.Surface, i: int, j: int) -> None:
     layer.blit(image, p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE))
-
-def clearSquareIJ(layer: p.Surface, i: int, j: int) -> None:
-    erase_rect = p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE)
-    layer.fill(TRANSPARENT, erase_rect)
 
 def drawPiece(layer: p.Surface, pieceInt: int, row: int, col: int) -> None:
     if pieceInt >= len(pieceImages): return
@@ -72,64 +78,90 @@ def drawSquare(layer: p.Surface, row: int, col: int, colour: p.Color) -> None:
 
     p.draw.rect(layer, colour, p.Rect(i, j, SQUARE_SIZE, SQUARE_SIZE))
 
-def highlightSquare(row: int, col: int) -> None:
-    squareColour: tuple = getSquareColour(row, col)
-    highlightColour: tuple = blendColours(squareColour, HIGHLIGHT_PRIMARY, opacity=HIGHLIGHT_INTENSITY)
+def drawUserStyling() -> None:
+    clearLayer(arrowLayer)
+    clearLayer(highlightsLayer)
 
-    drawSquare(boardLayer, row, col, highlightColour)  
+    for highlight, rect in highlights.values(): highlightsLayer.blit(highlight, rect)
+    for arrow,     rect in arrows.values():          arrowLayer.blit(arrow,     rect)
 
-def clearHighlights() -> None:
-    drawBoard()
+def newArrow(square1: list[int], square2: list[int]) -> p.Surface | p.Rect:
+    # offsets arrow extremities this many pixels from square centre
+    centreOffset: int = -40
 
-def drawArrow(square1: list[int], square2: list[int]) -> None:
-    [body_i, body_j] = square2pos(*square1)
-    [head_i, head_j] = square2pos(*square2)
+    v1 = numpy.array(square2pos(*square1))
+    v2 = numpy.array(square2pos(*square2))
     
-    # Calculate the angle of the line
-    angle = atan2(body_i - head_i, body_j - head_j)
-    width = 30
+    u: numpy.array[int] = v2 - v1
+    umag: int = round(numpy.sqrt(u.dot(u))) + centreOffset
+    uhat: numpy.array = u/umag
+    angle: float = atan2(*u)
 
-    # Find the perpendicular vector to the line
-    perp_x = sin(angle) * width / 2
-    perp_y = -cos(angle) * width / 2
+    head_x: int = SQUARE_SIZE//3
+    head_y: int = SQUARE_SIZE*3//5
+    body_x: int = umag - head_x
+    body_y: int = SQUARE_SIZE*2//7
 
-    v1 = numpy.array((body_i, body_j))
-    v2 = numpy.array((head_i, head_j))
-
-    offset = 40
-
-    u = v2 - v1
-    umag = numpy.sqrt(u.dot(u))
-    uhat = u/umag
-
-    start = v1 + offset*uhat + SQUARE_SIZE/2
-    end = v2 - offset*uhat + SQUARE_SIZE/2
-
-    # Calculate the four corners of the rectangle (thick line)
+    # right facing arrow, points are drawn anti-clockwise from top-left
     points = numpy.array([
-        (start[1] - perp_x, start[0] - perp_y),  # Corner 1
-        (start[1] + perp_x, start[0] + perp_y),  # Corner 2
-        (end[1] + perp_x, end[0] + perp_y),      # Corner 3
-        (end[1] - perp_x, end[0] - perp_y)       # Corner 4
+        (0, (head_y - body_y)//2),
+        (body_x, (head_y - body_y)//2),
+        (body_x, 0),
+        (umag, head_y//2),
+        (body_x, head_y),
+        (body_x, (head_y + body_y)//2),
+        (0, (head_y + body_y)//2),
     ])
 
-    # points = points + SQUARE_SIZE/2
+    arrow = p.Surface((umag, head_y), p.SRCALPHA, 32)
+    p.draw.polygon(arrow, HIGHLIGHT_SECONDARY, points)
     
-    head_x: int = SQUARE_SIZE*2/6
-    head_y: int = SQUARE_SIZE/3
-    arrowHead: p.Surface = p.Surface((head_x, head_y), p.SRCALPHA)
-    p.draw.polygon(arrowHead, HIGHLIGHT_SECONDARY, ((0,0),(0,head_y),(head_x,head_y/2),(0,0)))
+    # arrow head graphics
+    rotatedArrow: p.Surface = p.transform.rotate(arrow, -degrees(angle))
+    width: int = rotatedArrow.get_width()
+    height: int = rotatedArrow.get_height()
 
-    # Draw the polygon (rectangle) to represent the thick line
-    p.draw.polygon(arrowLayer, HIGHLIGHT_SECONDARY, points)
-    rotated_head = p.transform.rotate(arrowHead, 180 - degrees(angle))
-    head_rect = rotated_head.get_rect(center=(head_j + SQUARE_SIZE/2, head_i + SQUARE_SIZE/2))
+    cent_x, cent_y = v1 + uhat*umag/2
+    rect = p.Rect(cent_y + (SQUARE_SIZE - width)/2, cent_x + (SQUARE_SIZE - height)/2, width, height)
 
+    rotatedArrow.set_alpha(180)
+
+    return rotatedArrow, rect
     
-    arrowLayer.blit(rotated_head, head_rect)
-    # arrowLayer.blit(rotated_body, body_rect)
+def addArrow(square1: list[int], square2: list[int]) -> None:
+    arrow, arrowRect = newArrow(square1, square2)
+    arrID = arrowID(square1, square2)
+
+    if arrID in arrows.keys():
+        arrows.pop(arrID)
+    else:
+        arrows[arrID] = (arrow, arrowRect)
+
+def newSquareHighlight(row: int, col: int) -> p.Surface | tuple:
+    highlight: p.Surface = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA, 32)
+    highlightColour: tuple = blendColours(getSquareColour(row, col), HIGHLIGHT_PRIMARY, opacity=HIGHLIGHT_INTENSITY)
+
+    pos = tuple(square2pos(col, row))
+    highlight.fill(highlightColour)
+
+    return highlight, pos
+
+def addSquareHighlight(row: int, col: int) -> None:
+    highlight, pos = newSquareHighlight(row, col)
+    squareID = squareNumber(row, col)
+
+    if squareID in highlights.keys():
+        highlights.pop(squareID)
+    else:
+        highlights[squareID] = (highlight, pos)
+
+def clearUserStyling() -> None:
+    highlights.clear()
+    arrows.clear()
 
 def updateScreen() -> None:
+    drawUserStyling()
+
     for layer in layers: win.blit(layer, (0,0))
     p.display.update()
 
@@ -157,17 +189,6 @@ def pieceHover(pieceInt: int, row: int, col: int) -> None:
         updateScreen()
 
         clock.tick(target_fps)
-
-def getArrowGraphic() -> list[p.Surface]:
-    arrowBody: p.Surface = p.Surface((SQUARE_SIZE, SQUARE_SIZE/3))
-    arrowBody.fill(HIGHLIGHT_SECONDARY)
-
-    head_x: int = SQUARE_SIZE*2/3
-    head_y: int = SQUARE_SIZE/2
-    arrowHead: p.Surface = p.Surface((head_x, head_y), p.SRCALPHA)
-    p.draw.polygon(arrowHead, HIGHLIGHT_SECONDARY, ((0,0),(0,head_y),(head_x,head_y/2),(0,0)))
-
-    return arrowHead, arrowBody
 
 def clearLayer(layer: p.Surface) -> None:
     layer.fill(TRANSPARENT)
@@ -204,23 +225,26 @@ HIGHLIGHT_INTENSITY = 0.8
 TRANSPARENT: p.Color = p.Color(0,0,0,0)
 
 pieceImages: list[p.Surface] = loadImages()
-arrowHead, arrowBody = getArrowGraphic()
 clock = p.time.Clock()
+arrows: dict[str, tuple[p.Surface, p.Rect]] = {}
+highlights: list[str, tuple[p.Surface, p.Rect]] = {}
 
 p.init()
 
 win = p.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 boardLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+highlightsLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
 pieceLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
 arrowLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
 animationLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
-blankSquare = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA, 32)
+# blankSquare = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA, 32)
 
+highlightsLayer.convert_alpha()
 pieceLayer.convert_alpha()
 arrowLayer.convert_alpha()
 animationLayer.convert_alpha()
-blankSquare.convert_alpha()
+# blankSquare.convert_alpha()
 
 drawBoard()
 
-layers: list[p.Surface] = [boardLayer, pieceLayer, arrowLayer, animationLayer]
+layers: list[p.Surface] = [boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer]

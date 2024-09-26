@@ -5,8 +5,6 @@ from lib import *
 from graphics import *
 
 
-# fix highlight squares
-# add draw arrows
 # add special move functionality
 # add king check logic (ie block illegal check moves)
 # occasional glitch in piece animations. Unsure of source
@@ -252,16 +250,16 @@ def rClickPSLHandle(clickData: list[list[int]]) -> bool:
 
     if len(clickData) == 2:
         if clickData[0] == clickData[1]:
-            highlightSquare(clickData[0])
+            addSquareHighlight(*clickData[0])
         else:
-            drawArrow(*clickData)
+            addArrow(*clickData)
 
     return True
 
 def ldownPSLHandle(clickData: list[list[int]]) -> bool:
     if not validSquares(clickData): error("Square data invalid for ldownPSLHandle")
 
-    clearHighlights()
+    clearUserStyling()
 
     piece: int = getPiece(*clickData[0])
 
