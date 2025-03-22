@@ -1,5 +1,5 @@
 import pygame
-import chess
+import main
 
 # Initialize pygame
 pygame.init()
@@ -33,18 +33,18 @@ def draw_board(screen):
 
 # Function to draw the pieces on the board
 def draw_pieces(screen, board):
-    for square in chess.SQUARES:
+    for square in main.SQUARES:
         piece = board.piece_at(square)
         if piece:
-            column, row = chess.square_file(square), chess.square_rank(square)
+            column, row = main.square_file(square), main.square_rank(square)
             # Determine the name of the piece to find the correct image
-            piece_name = f"{('w' if piece.color == chess.WHITE else 'b')}{piece.symbol().upper()}"
+            piece_name = f"{('w' if piece.color == main.WHITE else 'b')}{piece.symbol().upper()}"
             screen.blit(pieces[piece_name], (column * SQUARE_SIZE, (7 - row) * SQUARE_SIZE))
 
 # Main function to handle the game loop
 def main():
     clock = pygame.time.Clock()
-    board = chess.Board()
+    board = main.Board()
     running = True
 
     while running:

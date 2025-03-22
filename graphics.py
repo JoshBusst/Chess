@@ -1,24 +1,15 @@
 
 import pygame as p
-import numpy, copy, random, time
+from numpy import array, sqrt
 from lib import *
-from math import sqrt, cos, sin, atan2
+from math import atan2
 from numpy import degrees
 
 
 
+
+
 ### Miscellaneous Helper Functions
-
-
-### Graphics Functions
-
-def loadImages() -> list[p.Surface]:
-    images: list[p.Surface] = []
-
-    for code in ["wR", "wN", "wB", "wQ", "wK", "wP", "bR", "bN", "bB", "bQ", "bK", "bP"]:
-        images.append(loadImage(f"images/{code}.png"))
-
-    return images
 
 def pos2square(pos: tuple[int]) -> list[int]:
     row: int = pos[0] // SQUARE_SIZE
@@ -44,9 +35,23 @@ def arrowID(square1: list[int], square2: list[int]) -> str:
 def getSquareColour(row: int, col: int) -> tuple:
     return BOARD_COLOURS[squareIsDark(row, col)]
 
-def clearSquareIJ(layer: p.Surface, i: int, j: int) -> None:
-    erase_rect = p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE)
-    layer.fill(TRANSPARENT, erase_rect)
+def loadImages() -> list[p.Surface]:
+    images: list[p.Surface] = []
+
+    for code in ["wR", "wN", "wB", "wQ", "wK", "wP", "bR", "bN", "bB", "bQ", "bK", "bP"]:
+        images.append(loadImage(f"images/{code}.png"))
+
+    return images
+
+
+
+### Graphics Functions
+
+def updateScreen() -> None:
+    drawUserStyling()
+
+    for layer in layers: win.blit(layer, (0,0))
+    p.display.update()
 
 def drawBoard() -> None:
     for row in range(8):
@@ -64,7 +69,7 @@ def drawPiece(layer: p.Surface, pieceInt: int, row: int, col: int) -> None:
 
     drawSprite(layer, pieceImages[pieceInt], i, j)
 
-def drawPieces(board: numpy.array) -> None:
+def drawPieces(board: array) -> None:
     clearLayer(pieceLayer)
 
     for row in range(8):
@@ -89,12 +94,12 @@ def newArrow(square1: list[int], square2: list[int]) -> p.Surface | p.Rect:
     # offsets arrow extremities this many pixels from square centre
     centreOffset: int = -40
 
-    v1 = numpy.array(square2pos(*square1))
-    v2 = numpy.array(square2pos(*square2))
+    v1 = array(square2pos(*square1))
+    v2 = array(square2pos(*square2))
     
-    u: numpy.array[int] = v2 - v1
-    umag: int = round(numpy.sqrt(u.dot(u))) + centreOffset
-    uhat: numpy.array = u/umag
+    u: array[int] = v2 - v1
+    umag: int = round(sqrt(u.dot(u))) + centreOffset
+    uhat: array = u/umag
     angle: float = atan2(*u)
 
     head_x: int = SQUARE_SIZE//3
@@ -103,7 +108,7 @@ def newArrow(square1: list[int], square2: list[int]) -> p.Surface | p.Rect:
     body_y: int = SQUARE_SIZE*2//7
 
     # right facing arrow, points are drawn anti-clockwise from top-left
-    points = numpy.array([
+    points = array([
         (0, (head_y - body_y)//2),
         (body_x, (head_y - body_y)//2),
         (body_x, 0),
@@ -128,15 +133,6 @@ def newArrow(square1: list[int], square2: list[int]) -> p.Surface | p.Rect:
 
     return rotatedArrow, rect
     
-def addArrow(square1: list[int], square2: list[int]) -> None:
-    arrow, arrowRect = newArrow(square1, square2)
-    arrID = arrowID(square1, square2)
-
-    if arrID in arrows.keys():
-        arrows.pop(arrID)
-    else:
-        arrows[arrID] = (arrow, arrowRect)
-
 def newSquareHighlight(row: int, col: int) -> p.Surface | tuple:
     highlight: p.Surface = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA, 32)
     highlightColour: tuple = blendColours(getSquareColour(row, col), HIGHLIGHT_PRIMARY, opacity=HIGHLIGHT_INTENSITY)
@@ -146,49 +142,34 @@ def newSquareHighlight(row: int, col: int) -> p.Surface | tuple:
 
     return highlight, pos
 
-def addSquareHighlight(row: int, col: int) -> None:
-    highlight, pos = newSquareHighlight(row, col)
-    squareID = squareNumber(row, col)
-
-    if squareID in highlights.keys():
-        highlights.pop(squareID)
-    else:
-        highlights[squareID] = (highlight, pos)
-
 def clearUserStyling() -> None:
     highlights.clear()
     arrows.clear()
 
-def updateScreen() -> None:
-    drawUserStyling()
-
-    for layer in layers: win.blit(layer, (0,0))
-    p.display.update()
-
 def pieceHover(pieceInt: int, row: int, col: int) -> None:
-    if pieceInt >= len(pieceImages): return
+    if pieceInt >= len(pieceImages): return # ignore empty squares
 
-    print(f"Piece {[row, col]} is hovering!")
+    # print(f"Piece {[row, col]} is hovering!")
 
     clearSquareIJ(pieceLayer, *square2pos(row, col))
-    target_fps = 50
-    keepRunning = True
+    
+    # target_fps = 50
 
-    while keepRunning:
-        for e in p.event.get():
-            if e.type in [p.QUIT, p.MOUSEBUTTONDOWN, p.MOUSEBUTTONUP]:
-                clearLayer(animationLayer)
-                p.event.post(e)
-                return
+    # while True:
+    #     for e in p.event.get():
+    #         if e.type in [p.QUIT, p.MOUSEBUTTONDOWN, p.MOUSEBUTTONUP]:
+    #             clearLayer(animationLayer)
+    #             p.event.post(e)
+    #             return
 
-        [i, j] = p.mouse.get_pos()
-        offset = SQUARE_SIZE/2
+    [i, j] = p.mouse.get_pos()
+    offset = SQUARE_SIZE/2
 
-        clearLayer(animationLayer)
-        drawSprite(animationLayer, pieceImages[pieceInt], j - offset, i - offset)
-        updateScreen()
+    clearLayer(animationLayer)
+    drawSprite(animationLayer, pieceImages[pieceInt], j - offset, i - offset)
+    # updateScreen()
 
-        clock.tick(target_fps)
+    # clock.tick(target_fps)
 
 def clearLayer(layer: p.Surface) -> None:
     layer.fill(TRANSPARENT)
@@ -211,6 +192,33 @@ def move_animate(image: p.Surface, point1: list[int], point2: list[int], dt=0.1,
     # animation is complete so wipe all animations
     clearLayer(animationLayer)
 
+def clearSquareIJ(layer: p.Surface, i: int, j: int) -> None:
+    erase_rect = p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE)
+    layer.fill(TRANSPARENT, erase_rect)
+
+
+
+# Core functions
+
+def addArrow(square1: list[int], square2: list[int]) -> None:
+    arrow, arrowRect = newArrow(square1, square2)
+    arrID = arrowID(square1, square2)
+
+    if arrID in arrows.keys():
+        arrows.pop(arrID)
+    else:
+        arrows[arrID] = (arrow, arrowRect)
+
+def addSquareHighlight(row: int, col: int) -> None:
+    highlight, pos = newSquareHighlight(row, col)
+    squareID = squareNumber(row, col)
+
+    if squareID in highlights.keys():
+        highlights.pop(squareID)
+    else:
+        highlights[squareID] = (highlight, pos)
+
+
 
 
 
@@ -232,11 +240,11 @@ highlights: list[str, tuple[p.Surface, p.Rect]] = {}
 p.init()
 
 win = p.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-boardLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+boardLayer =      p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 highlightsLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
-pieceLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
-arrowLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
-animationLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
+pieceLayer =      p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
+arrowLayer =      p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
+animationLayer =  p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
 # blankSquare = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA, 32)
 
 highlightsLayer.convert_alpha()
@@ -245,6 +253,6 @@ arrowLayer.convert_alpha()
 animationLayer.convert_alpha()
 # blankSquare.convert_alpha()
 
-drawBoard()
+# drawBoard()
 
 layers: list[p.Surface] = [boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer]
