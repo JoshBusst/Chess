@@ -126,3 +126,15 @@ class PSL_mouse:
         if reset: self.clearSequence()
 
 
+
+def getUserInput(validInputs: list[str], startMsg: str, errorMsg: str='') -> str:
+    if errorMsg == '': errorMsg = f"*Please select a valid option from {validInputs}."
+    
+    print(startMsg)
+    data: str = input("").lower()
+
+    while data not in validInputs:
+        print(errorMsg)
+        data = input("").lower()
+
+    return data
