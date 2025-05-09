@@ -1,95 +1,12 @@
 
 import pygame as p
-from numpy import array, sqrt
+from numpy import array, sqrt, degrees
 from lib import *
 from math import atan2
-from numpy import degrees
 
 
 
-
-
-### Miscellaneous Helper Functions
-
-def pos2square(pos: tuple[int]) -> list[int]:
-    row: int = pos[0] // SQUARE_SIZE
-    col: int = pos[1] // SQUARE_SIZE
-
-    return [col, row]
-
-def square2pos(row: int, col: int) -> list[int]:
-    i: int = row * SQUARE_SIZE
-    j: int = col * SQUARE_SIZE
-
-    return [i, j]
-
-def squareIsDark(row: int, col: int) -> bool:
-    return not(even(row) == even(col))
-
-def squareNumber(row: int, col: int) -> int:
-    return row*8 + col
-
-def arrowID(square1: list[int], square2: list[int]) -> str:
-    return str(squareNumber(*square1)) + str(squareNumber(*square2))
-
-def getSquareColour(row: int, col: int) -> tuple:
-    return BOARD_COLOURS[squareIsDark(row, col)]
-
-def loadImages() -> list[p.Surface]:
-    images: list[p.Surface] = []
-
-    for code in ["wR", "wN", "wB", "wQ", "wK", "wP", "bR", "bN", "bB", "bQ", "bK", "bP"]:
-        images.append(loadImage(f"images/{code}.png"))
-
-    return images
-
-
-
-### Graphics Functions
-
-def updateScreen() -> None:
-    drawUserStyling()
-
-    for layer in layers: win.blit(layer, (0,0))
-    p.display.update()
-
-def drawBoard() -> None:
-    for row in range(8):
-        for col in range(8):
-            drawSquare(boardLayer, row, col, BOARD_COLOURS[(row + col)%2])
-
-def drawSprite(layer: p.Surface, image: p.Surface, i: int, j: int) -> None:
-    layer.blit(image, p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE))
-
-def drawPiece(layer: p.Surface, pieceInt: int, row: int, col: int) -> None:
-    if pieceInt >= len(pieceImages): return
-    
-    i = row*SQUARE_SIZE
-    j = col*SQUARE_SIZE
-
-    drawSprite(layer, pieceImages[pieceInt], i, j)
-
-def drawPieces(board: array) -> None:
-    clearLayer(pieceLayer)
-
-    for row in range(8):
-        for col in range(8):
-            piece = board[row,col]
-            drawPiece(pieceLayer, piece, row, col)
-
-def drawSquare(layer: p.Surface, row: int, col: int, colour: p.Color) -> None:
-    i = col*SQUARE_SIZE
-    j = row*SQUARE_SIZE
-
-    p.draw.rect(layer, colour, p.Rect(i, j, SQUARE_SIZE, SQUARE_SIZE))
-
-def drawUserStyling() -> None:
-    clearLayer(arrowLayer)
-    clearLayer(highlightsLayer)
-
-    for highlight, rect in highlights.values(): highlightsLayer.blit(highlight, rect)
-    for arrow,     rect in arrows.values():          arrowLayer.blit(arrow,     rect)
-
+# thinking of migrating these to a for relevance
 def newArrow(square1: list[int], square2: list[int]) -> p.Surface | p.Rect:
     # offsets arrow extremities this many pixels from square centre
     centreOffset: int = -40
@@ -142,34 +59,103 @@ def newSquareHighlight(row: int, col: int) -> p.Surface | tuple:
 
     return highlight, pos
 
+def pos2square(pos: tuple[int]) -> list[int]:
+    row: int = pos[0] // SQUARE_SIZE
+    col: int = pos[1] // SQUARE_SIZE
+
+    return [col, row]
+
+def square2pos(row: int, col: int) -> list[int]:
+    i: int = row * SQUARE_SIZE
+    j: int = col * SQUARE_SIZE
+
+    return [i, j]
+
+def squareIsDark(row: int, col: int) -> bool:
+    return not(even(row) == even(col))
+
+def squareNumber(row: int, col: int) -> int:
+    return row*8 + col
+
+def getSquareColour(row: int, col: int) -> tuple:
+    return BOARD_COLOURS[squareIsDark(row, col)]
+
+
+
+### Miscellaneous Helper Functions
+
+def loadImages() -> list[p.Surface]:
+    images: list[p.Surface] = []
+
+    for code in ["wR", "wN", "wB", "wQ", "wK", "wP", "bR", "bN", "bB", "bQ", "bK", "bP"]:
+        images.append(loadImage(f"images/{code}.png"))
+
+    return images
+
+def arrowID(square1: list[int], square2: list[int]) -> str:
+    return str(squareNumber(*square1)) + str(squareNumber(*square2))
+
+
+
+### Graphics Functions
+
+def updateScreen() -> None:
+    drawUserStyling()
+
+    for layer in layers: win.blit(layer, (0,0))
+    p.display.update()
+
+def drawBoard() -> None:
+    for row in range(8):
+        for col in range(8):
+            drawSquare(boardLayer, row, col, BOARD_COLOURS[(row + col)%2])
+
+def drawSprite(layer: p.Surface, image: p.Surface, i: int, j: int) -> None:
+    layer.blit(image, p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE))
+
+def drawPiece(layer: p.Surface, pieceInt: int, row: int, col: int) -> None:
+    if pieceInt >= len(pieceImages): return
+    
+    i = row*SQUARE_SIZE
+    j = col*SQUARE_SIZE
+
+    drawSprite(layer, pieceImages[pieceInt], i, j)
+
+def drawPieces(board: array) -> None:
+    clearLayer(pieceLayer)
+
+    for row in range(8):
+        for col in range(8):
+            piece = board[row,col]
+            drawPiece(pieceLayer, piece, row, col)
+
+def drawSquare(layer: p.Surface, row: int, col: int, colour: p.Color) -> None:
+    i = col*SQUARE_SIZE
+    j = row*SQUARE_SIZE
+
+    p.draw.rect(layer, colour, p.Rect(i, j, SQUARE_SIZE, SQUARE_SIZE))
+
+def drawUserStyling() -> None:
+    clearLayer(arrowLayer)
+    clearLayer(highlightsLayer)
+
+    for highlight, rect in highlights.values(): highlightsLayer.blit(highlight, rect)
+    for arrow,     rect in arrows.values():          arrowLayer.blit(arrow,     rect)
+
 def clearUserStyling() -> None:
     highlights.clear()
     arrows.clear()
 
-def pieceHover(pieceInt: int, row: int, col: int) -> None:
+def pieceHover(pieceInt: int, target_IJ: tuple[int]) -> None:
     if pieceInt >= len(pieceImages): return # ignore empty squares
 
-    # print(f"Piece {[row, col]} is hovering!")
-
-    clearSquareIJ(pieceLayer, *square2pos(row, col))
-    
-    # target_fps = 50
-
-    # while True:
-    #     for e in p.event.get():
-    #         if e.type in [p.QUIT, p.MOUSEBUTTONDOWN, p.MOUSEBUTTONUP]:
-    #             clearLayer(animationLayer)
-    #             p.event.post(e)
-    #             return
+    clearSquareIJ(pieceLayer, *target_IJ)
 
     [i, j] = p.mouse.get_pos()
     offset = SQUARE_SIZE/2
 
     clearLayer(animationLayer)
     drawSprite(animationLayer, pieceImages[pieceInt], j - offset, i - offset)
-    # updateScreen()
-
-    # clock.tick(target_fps)
 
 def clearLayer(layer: p.Surface) -> None:
     layer.fill(TRANSPARENT)
