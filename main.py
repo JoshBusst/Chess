@@ -65,15 +65,9 @@ def validSquares(squares: list[list[int]]) -> bool:
         
     return True
 
-def empty(squares: list[int] | list[list[int]], board) -> bool:
-    if isinstance(squares[0], list):
-        return [getPiece(*square, board) == EMPTY for square in squares]
-    else:
-        return getPiece(*squares, board) == EMPTY
-
 def isTurn(piece: int, turn: bool) -> bool:
     if piece == EMPTY: return None
-    return  (pieceColour(piece) == 'w') == turn
+    return (pieceColour(piece) == 'w') == turn
 
 def nextTurn() -> None:
     global turn
@@ -129,6 +123,9 @@ def setPiece(row: int, col: int, board: array, piece: int) -> None:
 
 def pieceColour(piece: int) -> str:
     return pieceStr(piece)[0]
+
+def pieceType(piece: int) -> str:
+    return pieceStr(piece)[1]
 
 def promotionLogic(move: list[list[int]], board: array) -> None:
     piece: str = pieceStr(getPiece(*move[1], board))
@@ -536,7 +533,35 @@ def initBoard() -> array:
 
     return board
 
-def main() -> None:
+
+
+
+
+PIECE_CODES = ["wR", "wN", "wB", "wQ", "wK", "wP", "bR", "bN", "bB", "bQ", "bK", "bP", "e"]
+MOVE_FUNCTIONS: dict[str, callable] = {"R": rook, "N": knight, "B": bishop, "Q": queen, "K": king, "P": pawn}
+EMPTY = len(PIECE_CODES) - 1
+
+TARGET_FPS = 50
+
+clock = p.time.Clock()
+psl = PSL_mouse()
+
+# tracks the left rooks, king, and right rooks and if they have moved
+castleTracker: dict[str, list] = {'w': [False, False, False], 'b': [False, False, False]}
+
+board: array = initBoard()
+turn: bool = True # white is true, black is false
+moveLog: list[list] = []
+hover: Hover = Hover()
+lock: bool = False
+
+ldown_seq: list[str] = ['ldown', 'lup']
+rdown_seq: list[str] = ['rdown', 'rup']
+select_seq: list[str] = ['ldown', 'lup', 'ldown', 'lup']
+hover_seq: list[str] = ['ldown']
+
+
+if __name__ == "__main__":
     drawPieces(board)
     updateScreen()
 
@@ -567,30 +592,3 @@ def main() -> None:
         updateScreen()
 
         clock.tick(TARGET_FPS)
-
-
-
-
-
-if __name__ == "__main__":
-    PIECE_CODES = ["wR", "wN", "wB", "wQ", "wK", "wP", "bR", "bN", "bB", "bQ", "bK", "bP", "e"]
-    MOVE_FUNCTIONS: dict[str, callable] = {"R": rook, "N": knight, "B": bishop, "Q": queen, "K": king, "P": pawn}
-    EMPTY = len(PIECE_CODES) - 1
-
-    TARGET_FPS = 50
-
-    clock = p.time.Clock()
-    psl = PSL_mouse()
-
-    # tracks the left rooks, king, and right rooks and if they have moved
-    castleTracker: dict[str, list] = {'w': [False, False, False], 'b': [False, False, False]}
-
-    board: array = initBoard()
-
-    turn: bool = True # white is true, black is false
-    moveLog: list[list] = []
-
-    hover: Hover = Hover()
-    lock: bool = False
-    
-    main()
