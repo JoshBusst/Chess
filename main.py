@@ -3,6 +3,7 @@ from numpy import array, where, ones
 from ui import PSL_mouse, getUserInput
 from lib import *
 from graphics import *
+from ui import getMouseButtonStr
 from copy import copy
 from time import time_ns
 
@@ -52,8 +53,8 @@ def coord2square(coord: str) -> list[int]:
 
     return [int(ranks[int(coord[1])]), files.index(coord[0])]
 
-def getMouseSquare() -> list[int]:
-    return pos2square(p.mouse.get_pos())
+def getMouseSquare(mouse_IJ: tuple[int]) -> list[int]:
+    return pos2square(mouse_IJ)
 
 def validSquare(row: int, col: int) -> bool:
     return row >= 0 and row < 8 and col >= 0 and col < 8
@@ -85,7 +86,6 @@ def findKing(colour: str, board: array) -> list[int]:
 
 def opponentColour(colour: str) -> str:
     return 'w' if colour == 'b' else 'b'
-
 
 
 ### Piece management
@@ -393,7 +393,7 @@ def movePiecePSLHandle(squares: list[list[int]]) -> bool:
                 point1 = square2pos(*move[0])
                 point2 = square2pos(*move[1])
 
-                move_animate(pieceImages[selectedPiece], point1, point2, dt=0.15)
+                # move_animate(pieceImages[selectedPiece], point1, point2, dt=0.15)
                 
             movePiece(*move, board)
             moveLog.append(move)
@@ -523,8 +523,6 @@ def movePieceSpecial(move: list[list[int]], board: array):
         raise ValueError
 
 def initBoard() -> array:
-    drawBoard()
-
     board = ones([8,8], int)*EMPTY
     board[0,:] = array(pieceInts(['bR', 'bN', 'bB', 'bQ', 'bK', 'bB', 'bN', 'bR']))
     board[1,:] = array(pieceInts(['bP', 'bP', 'bP', 'bP', 'bP', 'bP', 'bP', 'bP']))
@@ -533,7 +531,94 @@ def initBoard() -> array:
 
     return board
 
+# return true if full or partial sequence match is found
+def matchSequence(activeSeq: list, matchSeq: list) -> bool:
+    if len(activeSeq) > len(matchSeq): return False
 
+    return not any([activeSeq[i] != matchSeq[i] for i in range(len(activeSeq))])
+
+def a():
+    if legalMove(*move, board):
+        _, specialMoves = possibleMoves(move[0], board)
+        sMovesSmall: list = [m[:2] for m in specialMoves]
+
+        if move in sMovesSmall:
+            i: int = sMovesSmall.index(squares)
+            movePieceSpecial(specialMoves[i], board)
+            moveLog.append(specialMoves[i])
+
+        else:
+            if animate:
+                point1 = square2pos(*move[0])
+                point2 = square2pos(*move[1])
+
+                # move_animate(pieceImages[selectedPiece], point1, point2, dt=0.15)
+                
+            movePiece(*move, board)
+            moveLog.append(move)
+
+        promotionLogic(move[:2], board)
+
+        nextTurn()
+    
+        
+    # test for checkmate
+    if checkmate('w' if turn else 'b', board):
+        print(f"Checkmate! {"White" if not turn else "Black"} wins!")
+        global lock
+        lock = True
+
+    drawPieces(board)
+    updateScreen()
+
+def updateGraphics() -> p.Surface:
+    win: p.Surface = updateScreen()
+
+    if hover.hovering:
+        pieceHover(hover.piece, square2pos(hover.row, hover.col))
+    else:
+        drawPieces(board)
+
+    return win
+
+def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
+    global activeSeq
+    global squaresClicked
+
+    buttonClicked: str = getMouseButtonStr(mouse_buttons)
+    mouseSquare: list[int] = getMouseSquare(mouse_IJ_rel)
+
+    if lock or buttonClicked == None: return
+    
+    hover.clear()
+    clearLayer(animationLayer)
+
+    activeSeq.append(buttonClicked)
+    squaresClicked.append(mouseSquare)
+
+    # hovering pieces
+    if buttonClicked == 'ldown':
+        clearUserStyling()
+        piece: int = getPiece(*mouseSquare, board)
+
+        if isTurn(piece, turn): hover.set(piece, *mouseSquare)
+
+
+    if any([matchSequence(activeSeq, sequence) for sequence in sequences]):
+        if activeSeq == sequences[0]:
+            print("first sequence")
+
+        # handle arrows and highlights
+        elif activeSeq == sequences[1]:
+            if squaresClicked[0] == squaresClicked[1]:
+                addSquareHighlight(*squaresClicked[0])
+            else:
+                addArrow(*squaresClicked)
+
+        # animated piece moves
+        elif activeSeq == sequences[2]:
+            pass
+            
 
 
 
@@ -554,41 +639,26 @@ turn: bool = True # white is true, black is false
 moveLog: list[list] = []
 hover: Hover = Hover()
 lock: bool = False
+activeSeq: list[str] = []
+squaresClicked: list[tuple] = []
 
-ldown_seq: list[str] = ['ldown', 'lup']
-rdown_seq: list[str] = ['rdown', 'rup']
-select_seq: list[str] = ['ldown', 'lup', 'ldown', 'lup']
-hover_seq: list[str] = ['ldown']
+sequences: list[tuple] = [['ldown', 'lup'], ['rdown', 'rup'], ['ldown', 'lup', 'ldown', 'lup']]
+
 
 
 if __name__ == "__main__":
-    drawPieces(board)
-    updateScreen()
+    import pygame as p
 
-    # order does matter
-    psl.addSequence(['ldown', 'lup'], movePiecePSLHandle, onclick=getMouseSquare)
-    psl.addSequence(['rdown', 'rup'], rClickPSLHandle, onclick=getMouseSquare)
-    psl.addSequence(['ldown', 'lup', 'ldown', 'lup'], movePiecePSLHandle, onclick=getMouseSquare)
-    psl.addSequence(['ldown'], ldownPSLHandle, onclick=getMouseSquare)
+    win = p.display.set_mode(SCREEN_DIMS)
 
     while True:
         for e in p.event.get():
-            match e.type:
-                case p.QUIT:
-                    exit()
-                case p.MOUSEBUTTONDOWN | p.MOUSEBUTTONUP:
-                    if not lock:
-                        hover.clear()
-                        clearLayer(animationLayer)
-                        psl.addClick(p.mouse.get_pressed())
-                case _:
-                    pass
-        
-        if hover.hovering:
-            pieceHover(hover.piece, square2pos(hover.row, hover.col))
-        else:
-            drawPieces(board)
-
-        updateScreen()
+            if e.type == p.QUIT:
+                exit()
+            elif e.type in (p.MOUSEBUTTONDOWN, p.MOUSEBUTTONUP):
+                updateGame(p.mouse.get_pressed(), p.mouse.get_pos())
+    
+        updateGraphics()
+        p.display.update()
 
         clock.tick(TARGET_FPS)

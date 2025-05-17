@@ -99,16 +99,25 @@ def arrowID(square1: list[int], square2: list[int]) -> str:
 
 ### Graphics Functions
 
-def updateScreen() -> None:
-    drawUserStyling()
+def updateScreen() -> p.Surface:
+    clearLayer(arrowLayer)
+    clearLayer(highlightsLayer)
+
+    for highlight, rect in highlights.values(): highlightsLayer.blit(highlight, rect)
+    for arrow,     rect in arrows.values():          arrowLayer.blit(arrow, rect)
 
     for layer in layers: win.blit(layer, (0,0))
-    p.display.update()
 
-def drawBoard() -> None:
+    return win
+
+def drawBoard(screenDims: tuple[int]) -> p.Surface:
+    board: p.Surface = p.Surface(screenDims)
+
     for row in range(8):
         for col in range(8):
-            drawSquare(boardLayer, row, col, BOARD_COLOURS[(row + col)%2])
+            drawSquare(board, row, col, BOARD_COLOURS[(row + col)%2])
+
+    return board 
 
 def drawSprite(layer: p.Surface, image: p.Surface, i: int, j: int) -> None:
     layer.blit(image, p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE))
@@ -135,13 +144,6 @@ def drawSquare(layer: p.Surface, row: int, col: int, colour: p.Color) -> None:
 
     p.draw.rect(layer, colour, p.Rect(i, j, SQUARE_SIZE, SQUARE_SIZE))
 
-def drawUserStyling() -> None:
-    clearLayer(arrowLayer)
-    clearLayer(highlightsLayer)
-
-    for highlight, rect in highlights.values(): highlightsLayer.blit(highlight, rect)
-    for arrow,     rect in arrows.values():          arrowLayer.blit(arrow,     rect)
-
 def clearUserStyling() -> None:
     highlights.clear()
     arrows.clear()
@@ -161,6 +163,9 @@ def clearLayer(layer: p.Surface) -> None:
     layer.fill(TRANSPARENT)
 
 def move_animate(image: p.Surface, point1: list[int], point2: list[int], dt=0.1, numPoints=20):
+    assert(False)
+    #TODO: serialise this function to deprecate use of updateScreen and prevent a bloxking implementation
+
     direction = (p.math.Vector2(point2) - point1)/numPoints
     points = [p.math.Vector2(point1) + i*direction for i in range(numPoints)]
     frameRate = int(numPoints/dt)*2
@@ -208,8 +213,9 @@ def addSquareHighlight(row: int, col: int) -> None:
 
 
 
-SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 800
+SCREEN_WIDTH = SCREEN_HEIGHT
+SCREEN_DIMS = (SCREEN_WIDTH, SCREEN_HEIGHT)
 SQUARE_SIZE = int(SCREEN_HEIGHT // 8)
 
 BOARD_COLOURS: list[tuple] = [(255,215,183), (163,108,77)]
@@ -225,20 +231,17 @@ highlights: list[str, tuple[p.Surface, p.Rect]] = {}
 
 p.init()
 
-win = p.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-boardLayer =      p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-highlightsLayer = p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
-pieceLayer =      p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
-arrowLayer =      p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
-animationLayer =  p.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), p.SRCALPHA, 32)
-# blankSquare = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA, 32)
+win = p.display.set_mode(SCREEN_DIMS)
+# win:             p.Surface = p.Surface(SCREEN_DIMS)
+boardLayer:      p.Surface = drawBoard(SCREEN_DIMS)
+highlightsLayer: p.Surface = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
+pieceLayer:      p.Surface = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
+arrowLayer:      p.Surface = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
+animationLayer:  p.Surface = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
 
 highlightsLayer.convert_alpha()
 pieceLayer.convert_alpha()
 arrowLayer.convert_alpha()
 animationLayer.convert_alpha()
-# blankSquare.convert_alpha()
-
-# drawBoard()
 
 layers: list[p.Surface] = [boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer]
