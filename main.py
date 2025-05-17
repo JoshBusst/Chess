@@ -1,8 +1,8 @@
 
 from numpy import array, where, ones
-from ui import PSL_mouse, getUserInput
+from ui import getUserInput
 from lib import *
-from graphics import *
+import graphics as g
 from ui import getMouseButtonStr
 from copy import copy
 from time import time_ns
@@ -10,8 +10,8 @@ from time import time_ns
 
 
 
-# fix PSL so pieces can still be grabbed even when a sequence is active (currently selected piece must be deselected then a new piece can be picked up)
-
+# promotion logic needs to be NON BLOCKING!
+# update graphics to accomodate static and then dyanmic screen size changes
 # maybe refactor a lil
 # add forward and back buttons ie cycling through move history
 
@@ -54,7 +54,7 @@ def coord2square(coord: str) -> list[int]:
     return [int(ranks[int(coord[1])]), files.index(coord[0])]
 
 def getMouseSquare(mouse_IJ: tuple[int]) -> list[int]:
-    return pos2square(mouse_IJ)
+    return g.pos2square(mouse_IJ)
 
 def validSquare(row: int, col: int) -> bool:
     return row >= 0 and row < 8 and col >= 0 and col < 8
@@ -176,7 +176,14 @@ def getSpecialMoves(square: list[int], board: array):
 
     return []
 
-
+def clickInRange(mouse_IJ_rel: list[int]) -> bool:
+    if mouse_IJ_rel[0] < 0 or mouse_IJ_rel[0] > g.SCREEN_DIMS[0]:
+        return False
+    
+    if mouse_IJ_rel[1] < 0 or mouse_IJ_rel[1] > g.SCREEN_DIMS[1]:
+        return False
+    
+    return True
 
 ### Piece movement functions
 
@@ -343,103 +350,6 @@ def pawnSpecial(row: int, col: int, board: array) -> tuple[list]:
 
 
 
-### PSL Handles
-
-def movePiecePSLHandle(squares: list[list[int]]) -> bool:
-    assert(isinstance(squares[0], list))
-
-    quitPSL: bool = True
-    selectedPiece: int = getPiece(*squares[0], board)
-
-    # break conditions
-    invalidInput: bool = not validSquares(squares) or len(squares) not in [2, 4]
-    wrongPieceSelected: bool = not isTurn(selectedPiece, turn)
-
-    if invalidInput or wrongPieceSelected:
-        psl.clearSequence()
-        return True
-    
-
-    move: list = []
-    animate: bool = False
-
-    # exactly one trigger in two different squares ie drag and drop
-    if len(squares) == 2 and squares[0] != squares[1]:
-        move = squares
-
-    # exactly two triggers in two DIFFERENT squares ie click to select and click to move
-    elif len(squares) == 4 and (squares[0] == squares[1] and squares[2] == squares[3] and squares[0] != squares[3]):
-        move = [squares[0], squares[2]]
-        animate = True
-    else:
-        drawPieces(board)
-        updateScreen()
-
-        return False
-
-        
-
-    if legalMove(*move, board):
-        _, specialMoves = possibleMoves(move[0], board)
-        sMovesSmall: list = [m[:2] for m in specialMoves]
-
-        if move in sMovesSmall:
-            i: int = sMovesSmall.index(squares)
-            movePieceSpecial(specialMoves[i], board)
-            moveLog.append(specialMoves[i])
-
-        else:
-            if animate:
-                point1 = square2pos(*move[0])
-                point2 = square2pos(*move[1])
-
-                # move_animate(pieceImages[selectedPiece], point1, point2, dt=0.15)
-                
-            movePiece(*move, board)
-            moveLog.append(move)
-
-        promotionLogic(move[:2], board)
-
-        nextTurn()
-    
-        
-    # test for checkmate
-    if checkmate('w' if turn else 'b', board):
-        print(f"Checkmate! {"White" if not turn else "Black"} wins!")
-        global lock
-        lock = True
-
-    drawPieces(board)
-    updateScreen()
-
-    return quitPSL
-
-def rClickPSLHandle(clickData: list[list[int]]) -> bool:
-    assert(len(clickData) == 2 and isinstance(clickData[0], list))
-
-    if not validSquares(clickData): error("Parameter fault in rClickPSLHandle}")
-
-    if len(clickData) == 2:
-        if clickData[0] == clickData[1]:
-            addSquareHighlight(*clickData[0])
-        else:
-            addArrow(*clickData)
-
-    return True
-
-def ldownPSLHandle(clickData: list[list[int]]) -> bool:
-    if not validSquares(clickData): error("Square data invalid for ldownPSLHandle")
-
-    clearUserStyling()
-
-    piece: int = getPiece(*clickData[0], board)
-
-    if isTurn(piece, turn):
-        hover.set(piece, *clickData[0])
-
-    return False
-
-
 
 ### Main Function(s)
 
@@ -486,6 +396,8 @@ def legalMove(square1: list[int], square2: list[int], board: array) -> bool:
     isEmpty:    bool = bool(piece1 == EMPTY)
     sameColour: bool = pieceColour(piece1) == pieceColour(piece2)
 
+    if isEmpty or sameColour: return False
+
 
     # ensure move is in possible moveset
     inMoveSet: bool = False
@@ -505,7 +417,7 @@ def legalMove(square1: list[int], square2: list[int], board: array) -> bool:
     inCheck: bool = isInCheck(pieceColour(piece1), p_board)
     if inCheck == None: return False
 
-    return not any([isEmpty, sameColour, not inMoveSet, inCheck])
+    return not any([not inMoveSet, inCheck])
 
 def movePiece(square1: list[int], square2: list[int], board: array) -> bool:
     board[*square2] = getPiece(*square1, board)
@@ -531,13 +443,24 @@ def initBoard() -> array:
 
     return board
 
+def clearSequence() -> None:
+    global activeSeq
+    global squaresClicked
+
+    activeSeq.clear()
+    squaresClicked.clear()
+
 # return true if full or partial sequence match is found
 def matchSequence(activeSeq: list, matchSeq: list) -> bool:
     if len(activeSeq) > len(matchSeq): return False
 
     return not any([activeSeq[i] != matchSeq[i] for i in range(len(activeSeq))])
 
-def a():
+def animatedMove(squares: list[list]):
+    assert(len(squares) == 4)
+
+    move: list[list] = [squares[0], squares[2]]
+
     if legalMove(*move, board):
         _, specialMoves = possibleMoves(move[0], board)
         sMovesSmall: list = [m[:2] for m in specialMoves]
@@ -548,9 +471,9 @@ def a():
             moveLog.append(specialMoves[i])
 
         else:
-            if animate:
-                point1 = square2pos(*move[0])
-                point2 = square2pos(*move[1])
+            if True:
+                point1 = g.square2pos(*move[0])
+                point2 = g.square2pos(*move[1])
 
                 # move_animate(pieceImages[selectedPiece], point1, point2, dt=0.15)
                 
@@ -568,16 +491,16 @@ def a():
         global lock
         lock = True
 
-    drawPieces(board)
-    updateScreen()
+    g.drawPieces(board)
+    g.updateScreen()
 
-def updateGraphics() -> p.Surface:
-    win: p.Surface = updateScreen()
+def updateGraphics(mouse_IJ: tuple[int]) -> p.Surface:
+    win: p.Surface = g.updateScreen()
 
     if hover.hovering:
-        pieceHover(hover.piece, square2pos(hover.row, hover.col))
+        g.pieceHover(hover.piece, g.square2pos(hover.row, hover.col), mouse_IJ)
     else:
-        drawPieces(board)
+        g.drawPieces(board)
 
     return win
 
@@ -585,39 +508,70 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
     global activeSeq
     global squaresClicked
 
+    if not clickInRange(mouse_IJ_rel):
+        clearSequence()
+        hover.clear()
+        g.clearLayer(g.animationLayer)
+        return
+
     buttonClicked: str = getMouseButtonStr(mouse_buttons)
     mouseSquare: list[int] = getMouseSquare(mouse_IJ_rel)
 
     if lock or buttonClicked == None: return
-    
-    hover.clear()
-    clearLayer(animationLayer)
 
     activeSeq.append(buttonClicked)
     squaresClicked.append(mouseSquare)
+    
 
-    # hovering pieces
+    # manage hovering pieces
+    hover.clear()
+    g.clearLayer(g.animationLayer)
+
     if buttonClicked == 'ldown':
-        clearUserStyling()
+        g.clearUserStyling()
         piece: int = getPiece(*mouseSquare, board)
 
-        if isTurn(piece, turn): hover.set(piece, *mouseSquare)
-
+        if isTurn(piece, turn):
+            hover.set(piece, *mouseSquare)
+            clearSequence()
+            activeSeq.append(buttonClicked)
+            squaresClicked.append(mouseSquare)
+        
+    if activeSeq[0] in ['lup','rup']:
+        clearSequence()
+    
 
     if any([matchSequence(activeSeq, sequence) for sequence in sequences]):
         if activeSeq == sequences[0]:
-            print("first sequence")
+            piece: int = getPiece(*squaresClicked[0], board)
+
+            if piece == EMPTY or not isTurn(piece, turn):
+                clearSequence()
+            elif squaresClicked[0] != squaresClicked[1]:
+                if legalMove(*squaresClicked, board):
+                    movePiece(*squaresClicked, board)
+                    nextTurn()
+                    clearSequence()
 
         # handle arrows and highlights
         elif activeSeq == sequences[1]:
             if squaresClicked[0] == squaresClicked[1]:
-                addSquareHighlight(*squaresClicked[0])
+                g.addSquareHighlight(*squaresClicked[0])
             else:
-                addArrow(*squaresClicked)
+                g.addArrow(*squaresClicked)
+            
+            clearSequence()
 
         # animated piece moves
         elif activeSeq == sequences[2]:
             pass
+            # if isTurn(getPiece(*squaresClicked[0], board), turn):
+            #     animatedMove(squaresClicked)
+            #     nextTurn()
+
+            # clearSequence()
+    else:
+        clearSequence()
             
 
 
@@ -629,7 +583,6 @@ EMPTY = len(PIECE_CODES) - 1
 TARGET_FPS = 50
 
 clock = p.time.Clock()
-psl = PSL_mouse()
 
 # tracks the left rooks, king, and right rooks and if they have moved
 castleTracker: dict[str, list] = {'w': [False, False, False], 'b': [False, False, False]}
@@ -645,20 +598,27 @@ squaresClicked: list[tuple] = []
 sequences: list[tuple] = [['ldown', 'lup'], ['rdown', 'rup'], ['ldown', 'lup', 'ldown', 'lup']]
 
 
-
 if __name__ == "__main__":
     import pygame as p
+    import graphics as g
 
-    win = p.display.set_mode(SCREEN_DIMS)
 
+    def mouseRel(win_dims: tuple[int]) -> tuple[int]:
+        return tuple([int(v) for v in array(p.mouse.get_pos()) - array(win_dims)])
+
+    win = p.display.set_mode((800,800))
+    g.init()
+    win_x, win_y = (0,0)
     while True:
         for e in p.event.get():
             if e.type == p.QUIT:
                 exit()
             elif e.type in (p.MOUSEBUTTONDOWN, p.MOUSEBUTTONUP):
-                updateGame(p.mouse.get_pressed(), p.mouse.get_pos())
+                updateGame(p.mouse.get_pressed(), mouseRel((win_x, win_y)))
     
-        updateGraphics()
+    
+        screen = updateGraphics(mouseRel((win_x, win_y)))
+        win.blit(screen, (win_x, win_y))
         p.display.update()
 
         clock.tick(TARGET_FPS)

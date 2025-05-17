@@ -63,6 +63,8 @@ def pos2square(pos: tuple[int]) -> list[int]:
     row: int = pos[0] // SQUARE_SIZE
     col: int = pos[1] // SQUARE_SIZE
 
+    assert(row in list(range(8)) and col in list(range(8)))
+
     return [col, row]
 
 def square2pos(row: int, col: int) -> list[int]:
@@ -148,12 +150,12 @@ def clearUserStyling() -> None:
     highlights.clear()
     arrows.clear()
 
-def pieceHover(pieceInt: int, target_IJ: tuple[int]) -> None:
+def pieceHover(pieceInt: int, target_IJ: tuple[int], mouse_IJ: tuple[int]) -> None:
     if pieceInt >= len(pieceImages): return # ignore empty squares
 
     clearSquareIJ(pieceLayer, *target_IJ)
 
-    [i, j] = p.mouse.get_pos()
+    [i, j] = mouse_IJ
     offset = SQUARE_SIZE/2
 
     clearLayer(animationLayer)
@@ -204,12 +206,31 @@ def addSquareHighlight(row: int, col: int) -> None:
     highlight, pos = newSquareHighlight(row, col)
     squareID = squareNumber(row, col)
 
+    print("Adding new highlgiht")
+
     if squareID in highlights.keys():
         highlights.pop(squareID)
     else:
         highlights[squareID] = (highlight, pos)
 
+def init() -> None:
+    global pieceImages, win, boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer, layers
 
+    pieceImages = loadImages()
+
+    win = p.Surface(SCREEN_DIMS)
+    boardLayer = drawBoard(SCREEN_DIMS)
+    highlightsLayer = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
+    pieceLayer = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
+    arrowLayer = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
+    animationLayer  = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
+
+    highlightsLayer.convert_alpha()
+    pieceLayer.convert_alpha()
+    arrowLayer.convert_alpha()
+    animationLayer.convert_alpha()
+
+    layers = [boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer]
 
 
 
@@ -224,24 +245,16 @@ HIGHLIGHT_SECONDARY: tuple = (252,247,189)
 HIGHLIGHT_INTENSITY = 0.8
 TRANSPARENT: p.Color = p.Color(0,0,0,0)
 
-pieceImages: list[p.Surface] = loadImages()
+pieceImages: list[p.Surface] = []
 clock = p.time.Clock()
 arrows: dict[str, tuple[p.Surface, p.Rect]] = {}
 highlights: list[str, tuple[p.Surface, p.Rect]] = {}
 
-p.init()
+win: p.Surface
+boardLayer: p.Surface
+highlightsLayer: p.Surface
+pieceLayer: p.Surface
+arrowLayer: p.Surface
+animationLayer: p.Surface
 
-win = p.display.set_mode(SCREEN_DIMS)
-# win:             p.Surface = p.Surface(SCREEN_DIMS)
-boardLayer:      p.Surface = drawBoard(SCREEN_DIMS)
-highlightsLayer: p.Surface = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
-pieceLayer:      p.Surface = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
-arrowLayer:      p.Surface = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
-animationLayer:  p.Surface = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
-
-highlightsLayer.convert_alpha()
-pieceLayer.convert_alpha()
-arrowLayer.convert_alpha()
-animationLayer.convert_alpha()
-
-layers: list[p.Surface] = [boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer]
+layers: list[p.Surface] = []
