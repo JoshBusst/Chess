@@ -501,7 +501,7 @@ def updateGraphics(mouse_IJ: tuple[int]) -> p.Surface:
         g.pieceHover(hover.piece, g.square2pos(hover.row, hover.col), mouse_IJ)
     else:
         g.drawPieces(board)
-
+    
     return win
 
 def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
@@ -580,9 +580,13 @@ PIECE_CODES = ["wR", "wN", "wB", "wQ", "wK", "wP", "bR", "bN", "bB", "bQ", "bK",
 MOVE_FUNCTIONS: dict[str, callable] = {"R": rook, "N": knight, "B": bishop, "Q": queen, "K": king, "P": pawn}
 EMPTY = len(PIECE_CODES) - 1
 
-TARGET_FPS = 50
+TARGET_FPS = 100
 
 clock = p.time.Clock()
+fps_tracker: list[float] = [0]*100
+fps_count: int = 0
+last_time: float = 0
+nano: int = 10**9
 
 # tracks the left rooks, king, and right rooks and if they have moved
 castleTracker: dict[str, list] = {'w': [False, False, False], 'b': [False, False, False]}
@@ -598,6 +602,7 @@ squaresClicked: list[tuple] = []
 sequences: list[tuple] = [['ldown', 'lup'], ['rdown', 'rup'], ['ldown', 'lup', 'ldown', 'lup']]
 
 
+
 if __name__ == "__main__":
     import pygame as p
     import graphics as g
@@ -607,7 +612,9 @@ if __name__ == "__main__":
         return tuple([int(v) for v in array(p.mouse.get_pos()) - array(win_dims)])
 
     win = p.display.set_mode((800,800))
+    p.init()
     g.init()
+
     win_x, win_y = (0,0)
     while True:
         for e in p.event.get():
@@ -620,5 +627,22 @@ if __name__ == "__main__":
         screen = updateGraphics(mouseRel((win_x, win_y)))
         win.blit(screen, (win_x, win_y))
         p.display.update()
+
+        # track FPS
+        time = time_ns()
+        fps_tracker.pop(0)
+        fps_tracker.append(nano/(time - last_time))
+        
+        last_time = time
+
+        # draw avg fps at a custom rate (in Hz)
+        if fps_count > TARGET_FPS//5:
+            fps_count = 0
+
+            g.clearLayer(g.extrasLayer)
+            fps_avg: float = str(round(sum(fps_tracker)/len(fps_tracker)))
+            g.drawSprite(g.extrasLayer, g.textSprite(str(fps_avg)), (2,2))
+        else:
+            fps_count += 1
 
         clock.tick(TARGET_FPS)

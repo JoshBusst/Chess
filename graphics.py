@@ -6,6 +6,26 @@ from math import atan2
 
 
 
+TRANSPARENT: p.Color = p.Color(0,0,0,0)
+WHITE: p.Color = p.Color('azure')
+BLACK: p.Color = p.Color('black')
+RED:   p.Color = p.Color('red')
+GREEN:   p.Color = p.Color('green')
+BLUE:  p.Color = p.Color('blue')
+BROWN: p.Color = p.Color('antiquewhite2')
+
+SCREEN_HEIGHT = 800
+SCREEN_WIDTH = SCREEN_HEIGHT
+SCREEN_DIMS = (SCREEN_WIDTH, SCREEN_HEIGHT)
+SQUARE_SIZE = int(SCREEN_HEIGHT // 8)
+
+BOARD_COLOURS: list[tuple] = [(255,215,183), (163,108,77)]
+HIGHLIGHT_PRIMARY: tuple = (255,100,100)
+HIGHLIGHT_SECONDARY: tuple = (252,247,189)
+HIGHLIGHT_INTENSITY = 0.8
+
+
+
 # thinking of migrating these to a for relevance
 def newArrow(square1: list[int], square2: list[int]) -> p.Surface | p.Rect:
     # offsets arrow extremities this many pixels from square centre
@@ -121,7 +141,8 @@ def drawBoard(screenDims: tuple[int]) -> p.Surface:
 
     return board 
 
-def drawSprite(layer: p.Surface, image: p.Surface, i: int, j: int) -> None:
+def drawSprite(layer: p.Surface, image: p.Surface, sprite_ij: tuple[int]) -> None:
+    i, j = sprite_ij
     layer.blit(image, p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE))
 
 def drawPiece(layer: p.Surface, pieceInt: int, row: int, col: int) -> None:
@@ -130,7 +151,7 @@ def drawPiece(layer: p.Surface, pieceInt: int, row: int, col: int) -> None:
     i = row*SQUARE_SIZE
     j = col*SQUARE_SIZE
 
-    drawSprite(layer, pieceImages[pieceInt], i, j)
+    drawSprite(layer, pieceImages[pieceInt], (i,j))
 
 def drawPieces(board: array) -> None:
     clearLayer(pieceLayer)
@@ -159,7 +180,7 @@ def pieceHover(pieceInt: int, target_IJ: tuple[int], mouse_IJ: tuple[int]) -> No
     offset = SQUARE_SIZE/2
 
     clearLayer(animationLayer)
-    drawSprite(animationLayer, pieceImages[pieceInt], j - offset, i - offset)
+    drawSprite(animationLayer, pieceImages[pieceInt], (j - offset, i - offset))
 
 def clearLayer(layer: p.Surface) -> None:
     layer.fill(TRANSPARENT)
@@ -177,7 +198,7 @@ def move_animate(image: p.Surface, point1: list[int], point2: list[int], dt=0.1,
 
     for i in range(numPoints):
         clearLayer(animationLayer)
-        drawSprite(animationLayer, image, *points[i])
+        drawSprite(animationLayer, image, points[i])
         updateScreen()
 
         clock.tick(frameRate)
@@ -188,6 +209,22 @@ def move_animate(image: p.Surface, point1: list[int], point2: list[int], dt=0.1,
 def clearSquareIJ(layer: p.Surface, i: int, j: int) -> None:
     erase_rect = p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE)
     layer.fill(TRANSPARENT, erase_rect)
+
+def textSprite(text: str, fontSize: int=12, colour: p.Color=BLACK, font: str='calibri') -> p.Surface:
+    lines: list[str] = text.split('\n')
+
+    sprite_X: int = max([len(l) for l in lines])*fontSize/2
+    sprite_Y: int = len(lines) * (fontSize + 2)
+
+    sprite: p.Surface = p.Surface((sprite_X, sprite_Y), p.SRCALPHA).convert_alpha()
+
+    for i, line in enumerate(lines):
+        pygameFont: p.font.Font = p.font.SysFont(font, fontSize)
+        text: p.Surface = pygameFont.render(line, True, colour)
+
+        sprite.blit(text, (0, i*fontSize + 2))
+
+    return sprite
 
 
 
@@ -214,7 +251,7 @@ def addSquareHighlight(row: int, col: int) -> None:
         highlights[squareID] = (highlight, pos)
 
 def init() -> None:
-    global pieceImages, win, boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer, layers
+    global pieceImages, win, boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer, extrasLayer, layers
 
     pieceImages = loadImages()
 
@@ -224,26 +261,16 @@ def init() -> None:
     pieceLayer = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
     arrowLayer = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
     animationLayer  = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
+    extrasLayer  = p.Surface(SCREEN_DIMS, p.SRCALPHA, 32)
 
     highlightsLayer.convert_alpha()
     pieceLayer.convert_alpha()
     arrowLayer.convert_alpha()
     animationLayer.convert_alpha()
 
-    layers = [boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer]
+    layers = [boardLayer, highlightsLayer, pieceLayer, arrowLayer, animationLayer, extrasLayer]
 
 
-
-SCREEN_HEIGHT = 800
-SCREEN_WIDTH = SCREEN_HEIGHT
-SCREEN_DIMS = (SCREEN_WIDTH, SCREEN_HEIGHT)
-SQUARE_SIZE = int(SCREEN_HEIGHT // 8)
-
-BOARD_COLOURS: list[tuple] = [(255,215,183), (163,108,77)]
-HIGHLIGHT_PRIMARY: tuple = (255,100,100)
-HIGHLIGHT_SECONDARY: tuple = (252,247,189)
-HIGHLIGHT_INTENSITY = 0.8
-TRANSPARENT: p.Color = p.Color(0,0,0,0)
 
 pieceImages: list[p.Surface] = []
 clock = p.time.Clock()
@@ -256,5 +283,6 @@ highlightsLayer: p.Surface
 pieceLayer: p.Surface
 arrowLayer: p.Surface
 animationLayer: p.Surface
+extrasLayer: p.Surface
 
 layers: list[p.Surface] = []
