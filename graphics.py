@@ -1,6 +1,6 @@
 
 import pygame as p
-from numpy import array, sqrt, degrees, int8
+from numpy import array, sqrt, degrees
 from lib import *
 from math import atan2
 
@@ -31,7 +31,7 @@ HIGHLIGHT_INTENSITY = 0.8
 
 
 # thinking of migrating these to a different file for relevance
-def newArrow(sqnum1: int8, sqnum2: int8) -> p.Surface | p.Rect:
+def newArrow(sqnum1: int, sqnum2: int) -> p.Surface | p.Rect:
     # offsets arrow extremities this many pixels from square centre
     centreOffset: int = -40
 
@@ -74,7 +74,7 @@ def newArrow(sqnum1: int8, sqnum2: int8) -> p.Surface | p.Rect:
 
     return rotatedArrow, rect
     
-def newSquareHighlight(sqnum: int8) -> p.Surface | tuple:
+def newSquareHighlight(sqnum: int) -> p.Surface | tuple:
     highlight: p.Surface = p.Surface((SQUARE_SIZE, SQUARE_SIZE), p.SRCALPHA, 32)
     highlightColour: tuple = blendColours(getSquareColour(sqnum), HIGHLIGHT_PRIMARY, opacity=HIGHLIGHT_INTENSITY)
 
@@ -83,48 +83,49 @@ def newSquareHighlight(sqnum: int8) -> p.Surface | tuple:
 
     return highlight, pos
 
-def num2square(sqnum: int8) -> tuple:
+def num2square(sqnum: int) -> tuple:
     return (sqnum // 8, sqnum % 8)
 
-def square2num(square: tuple) -> int8:
-    return int8(8*square[0] + square[1])
+def square2num(square: tuple) -> int:
+    return int(8*square[0] + square[1])
 
-def pos2num(pos: tuple[int]) -> int8:
+def pos2num(pos: tuple[int]) -> int:
     row: int = pos[0] // SQUARE_SIZE
     col: int = pos[1] // SQUARE_SIZE
 
     assert(row in list(range(8)) and col in list(range(8)))
 
-    return int8(col + row*8)
+    return int(col + row*8)
 
-def num2pos(square: tuple[int]) -> list[int]:
-    i: int = square[0] * SQUARE_SIZE
-    j: int = square[1] * SQUARE_SIZE
+def num2pos(sqnum: int) -> list[int]:
+    row, col = num2square(sqnum)
+    i: int = row * SQUARE_SIZE
+    j: int = col * SQUARE_SIZE
 
     return [i, j]
 
-def pos2num_dyna(pos: tuple[int]) -> int8:
+def pos2num_dyna(pos: tuple[int]) -> int:
     row: int = pos[0] // (screen_height//8)
     col: int = pos[1] // (screen_height//8)
 
     # assert(row in list(range(8)) and col in list(range(8)))
 
-    return int8(col + row*8)
+    return int(col*8 + row)
 
-def num2pos_dyna(sqnum: int8) -> list[int]:
+def num2pos_dyna(sqnum: int) -> list[int]:
     row, col = num2square(sqnum)
     i: int = row * (screen_height//8)
     j: int = col * (screen_height//8)
 
     return [i, j]
 
-def squareIsDark(sqnum: int8) -> bool:
+def squareIsDark(sqnum: int) -> bool:
     return bool(sqnum % 2)
 
 def getSquareColour(row: int, col: int) -> tuple:
     return BOARD_COLOURS[squareIsDark(row, col)]
 
-def arrowID(sqnum1: int8, sqnum2: int8) -> str:
+def arrowID(sqnum1: int, sqnum2: int) -> str:
     return str(sqnum1) + str(sqnum2)
 
 def loadImages() -> list[p.Surface]:
@@ -158,7 +159,7 @@ def drawBoard(screenDims: tuple[int]) -> p.Surface:
 
     for row in range(8):
         for col in range(8):
-            sqnum: int8 = int8(row*8 + col)
+            sqnum: int = int(row*8 + col)
             drawSquare(board, sqnum, BOARD_COLOURS[(row + col) % 2])
 
     return board 
@@ -167,7 +168,7 @@ def drawSprite(layer: p.Surface, image: p.Surface, sprite_ij: tuple[int]) -> Non
     i, j = sprite_ij
     layer.blit(image, p.Rect(j, i, SQUARE_SIZE, SQUARE_SIZE))
 
-def drawPiece(layer: p.Surface, pieceInt: int, sqnum: int8) -> None:
+def drawPiece(layer: p.Surface, pieceInt: int, sqnum: int) -> None:
     if pieceInt >= len(pieceImages): return
     
     row, col = num2square(sqnum)
@@ -183,7 +184,7 @@ def drawPieces(board: array) -> None:
         piece = board[sqnum]
         drawPiece(pieceLayer, piece, sqnum)
 
-def drawSquare(layer: p.Surface, sqnum: int8, colour: p.Color) -> None:
+def drawSquare(layer: p.Surface, sqnum: int, colour: p.Color) -> None:
     row, col = num2square(sqnum)
     i = int(col)*SQUARE_SIZE
     j = int(row)*SQUARE_SIZE
@@ -256,7 +257,7 @@ def textSprite(text: str, fontSize: int=12, colour: p.Color=BLACK, font: str='ca
 
 # Core functions
 
-def addArrow(sqnum1: int8, sqnum2: int8) -> None:
+def addArrow(sqnum1: int, sqnum2: int) -> None:
     arrow, arrowRect = newArrow(sqnum1, sqnum2)
     arrID = arrowID(sqnum1, sqnum2)
 
@@ -265,7 +266,7 @@ def addArrow(sqnum1: int8, sqnum2: int8) -> None:
     else:
         arrows[arrID] = (arrow, arrowRect)
 
-def addSquareHighlight(sqnum: int8) -> None:
+def addSquareHighlight(sqnum: int) -> None:
     highlight, pos = newSquareHighlight(sqnum)
 
     if sqnum in highlights.keys():

@@ -1,5 +1,5 @@
 
-from numpy import array, where, ones, int8
+from numpy import array, where, ones
 from ui import getUserInput
 from lib import *
 import graphics as g
@@ -24,9 +24,9 @@ class Hover:
     def __init__(self):
         self.hovering: bool = False
         self.piece: int = EMPTY
-        self.sqnum: int8 = None
+        self.sqnum: int = None
 
-    def set(self, piece: int, sqnum: int8) -> None:
+    def set(self, piece: int, sqnum: int) -> None:
         self.hovering = True
         self.piece = piece
         self.sqnum = sqnum
@@ -40,7 +40,7 @@ class Hover:
 
 class Sequence:
     active: list[str]
-    squares: list[int8]
+    squares: list[int]
 
     def __init__(self):
         self.active = []
@@ -56,7 +56,7 @@ class Sequence:
 
         return not any([self.active[i] != matchSeq[i] for i in range(len(self.active))])
 
-    def add(self, buttonStr: str, sqnum: int8):
+    def add(self, buttonStr: str, sqnum: int):
         self.active.append(buttonStr)
         self.squares.append(sqnum)
 
@@ -64,18 +64,24 @@ class Sequence:
 
 ### Miscellaneous helper functions
 
+def printBoard(board: array) -> None:
+    for i in range(8):
+        print(board[i*8:(i+1)*8])
+
+    print()
+
 # convert to n64 number  format
-def square2num(square: tuple) -> int8:
-    return int8(8*square[0] + square[1])
+def square2num(square: tuple) -> int:
+    return int(8*square[0] + square[1])
 
 # convert from n64 nubmer format to [row, col]
-def num2square(num: int8) -> tuple:
+def num2square(num: int) -> tuple:
     return (num // 8, num % 8)
 
-def num2pgn(num: int8) -> str:
+def num2pgn(num: int) -> str:
     return square2pgn(num2square(num))
 
-def pgn2num(pgn: str) -> int8:
+def pgn2num(pgn: str) -> int:
     return square2num(pgn2square(pgn))
 
 def square2pgn(square: list[int]) -> str:
@@ -91,26 +97,26 @@ def pgn2square(coord: str) -> list[int]:
     return [int(ranks[int(coord[1])]), files.index(coord[0])]
 
 # uses n64 to return n64 row manipulation
-def addrow(sqnum: int8, add: int) -> int8:
-    return int8(int(sqnum) + add*8)
+def addrow(sqnum: int, add: int) -> int:
+    return int(int(sqnum) + add*8)
 
-def addrows(sqnum: int8, adds: list[int]) -> list[int8]:
+def addrows(sqnum: int, adds: list[int]) -> list[int]:
     return [addrow(sqnum, add) for add in adds]
 
 # uses n64 to return n64 row manipulation
-def addcol(sqnum: int8, add: int) -> int8:
+def addcol(sqnum: int, add: int) -> int:
     return sqnum + add
 
-def addcols(sqnum: int8, adds: list[int]) -> list[int8]:
+def addcols(sqnum: int, adds: list[int]) -> list[int]:
     return [addcols(sqnum, add) for add in adds]
 
-def getMouseSqnum(mouse_IJ: tuple[int]) -> int8:
+def getMouseSqnum(mouse_IJ: tuple[int]) -> int:
     return g.pos2num_dyna(mouse_IJ)
 
-def validSquare(sqnum: int8) -> bool:
+def validSquare(sqnum: int) -> bool:
     return sqnum >= 0 and sqnum < 64
 
-def validSquares(sqnums: list[int8]) -> bool:
+def validSquares(sqnums: list[int]) -> bool:
     return any([validSquare(sqnum) for sqnum in sqnums])
 
 def isTurn(piece: int, turn: bool) -> bool:
@@ -121,12 +127,12 @@ def nextTurn() -> None:
     global turn
     turn = not turn
 
-def findKing(colour: str, board: array) -> int8:
+def findKing(colour: str, board: array) -> int:
     result = where(board == pieceInt(colour + 'K'))
 
     if len(result[0]) == 0: return None
 
-    return int8(result[0][0])
+    return int(result[0][0])
 
 def opponentColour(colour: str) -> str:
     return 'w' if colour == 'b' else 'b'
@@ -147,7 +153,7 @@ def pieceInt(string: str) -> int:
 def pieceInts(strings: list[str]) -> array:
     return array([pieceInt(i) for i in strings])
 
-def possibleMoves(sqnum: int8, board: array) -> list[list]:
+def possibleMoves(sqnum: int, board: array) -> list[list]:
     piece: int = getPiece(sqnum, board)
     if piece == EMPTY: return []
 
@@ -157,13 +163,13 @@ def possibleMoves(sqnum: int8, board: array) -> list[list]:
 
     return moves, moves_special
 
-def getPiece(sqnum: int8, board: array) -> int:
+def getPiece(sqnum: int, board: array) -> int:
     if validSquare(sqnum): return board[sqnum]
 
-def remPiece(sqnum: int8, board: array) -> None:
+def remPiece(sqnum: int, board: array) -> None:
     if validSquare(sqnum): board[sqnum] = EMPTY
 
-def setPiece(sqnum: int8, board: array, piece: int) -> None:
+def setPiece(sqnum: int, board: array, piece: int) -> None:
     if validSquare(sqnum): board[sqnum] = piece
 
 def pieceColour(piece: int) -> str:
@@ -172,7 +178,7 @@ def pieceColour(piece: int) -> str:
 def pieceType(piece: int) -> str:
     return pieceStr(piece)[1] if piece != EMPTY else 'e'
 
-def promotionLogic(move: list[int8], board: array) -> None:
+def promotionLogic(move: list[int], board: array) -> None:
     piece: str = pieceStr(getPiece(move[1], board))
     row, _ = num2square(move[1])
 
@@ -189,24 +195,23 @@ def checkmate(turn: bool, board: array):
 
     if not isInCheck(colour, board): return False
 
-    kingSqnum: int8 = findKing(colour, board)
+    kingSqnum: int = findKing(colour, board)
     kingColour: str = pieceColour(getPiece(kingSqnum, board))
 
     moves, specialMoves = possibleMoves(kingSqnum, board)
 
     for sqnum in range(64):
         piece: int = getPiece(sqnum, board)
-        square: list[int] = [row, col]
 
         if pieceColour(piece) == kingColour:
-            moves, specialMoves = possibleMoves(square, board)
+            moves, specialMoves = possibleMoves(sqnum, board)
 
             for move in moves:
-                if legalMove([square, move], possibleMoves(square, board), board):
+                if legalMove([sqnum, move], possibleMoves(sqnum, board), board):
                     return False
 
             for move in specialMoves:
-                if legalMove(move, possibleMoves(square, board), board):
+                if legalMove(move, possibleMoves(sqnum, board), board):
                     return False
 
     return True
@@ -215,9 +220,9 @@ def getSpecialMoves(sqnum: list[int], board: array):
     piece: int = getPiece(sqnum, board)
 
     if pieceType(piece) == "K":
-        return kingSpecial(*square, board)
+        return kingSpecial(sqnum, board)
     elif pieceType(piece) == "P":
-        return pawnSpecial(*square, board)
+        return pawnSpecial(sqnum, board)
     
     return []
 
@@ -234,10 +239,10 @@ def clickInRange(mouse_IJ_rel: list[int]) -> bool:
 
 ### Piece movement functions
 
-def rook(sqnum: int8, board: array) -> list[list]:
+def rook(sqnum: int, board: array) -> list[list]:
     tracker: list[bool] = [True, True, True, True]
     colour: str = pieceColour(getPiece(sqnum, board))
-    moves: list[int8] = []
+    moves: list[int] = []
 
     for i in range(1,8):
         sqnums = [
@@ -264,12 +269,12 @@ def rook(sqnum: int8, board: array) -> list[list]:
 
     return moves
 
-def knight(sqnum: int8, board: array) -> list[int8]:
+def knight(sqnum: int, board: array) -> list[int]:
     colour: str = pieceColour(getPiece(sqnum, board))
-    moves: list[int8] = []
+    moves: list[int] = []
 
 
-    sqnums: list[int8] = [
+    sqnums: list[int] = [
         addrow(addcol(sqnum,  1),  2),
         addrow(addcol(sqnum, -1),  2),
         addrow(addcol(sqnum,  2),  1),
@@ -287,10 +292,10 @@ def knight(sqnum: int8, board: array) -> list[int8]:
 
     return moves
 
-def bishop(sqnum: int8, board: array) -> list[int8]:
+def bishop(sqnum: int, board: array) -> list[int]:
     tracker: list[bool] = [True, True, True, True]
     colour: str = pieceColour(getPiece(sqnum, board))
-    moves: list[int8] = []
+    moves: list[int] = []
 
     for i in range(1,8):
         sqnums = [
@@ -317,16 +322,16 @@ def bishop(sqnum: int8, board: array) -> list[int8]:
 
     return moves
 
-def queen(sqnum: int8, board: array) -> list[int8]:
+def queen(sqnum: int, board: array) -> list[int]:
     return bishop(sqnum, board) + rook(sqnum, board)
 
-def king(sqnum: int8, board: array) -> list[int8]:
+def king(sqnum: int, board: array) -> list[int]:
     colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[list[int]] = []
     specialMoves: list[list[int]] = []
 
     # surrounding 8 squares
-    sqnums: list[int8] = [
+    sqnums: list[int] = [
         [addrow(addcol(sqnum, i), j) for j in range(-1,1) if not(i==j==0)] for i in range(-1,1)
     ]
     
@@ -337,7 +342,7 @@ def king(sqnum: int8, board: array) -> list[int8]:
 
     return moves
 
-def kingSpecial(sqnum: int8, board: array) -> tuple[list]:
+def kingSpecial(sqnum: int, board: array) -> tuple[list]:
     colour: str = pieceColour(getPiece(sqnum, board))
     moves: tuple[list] = []
 
@@ -351,9 +356,9 @@ def kingSpecial(sqnum: int8, board: array) -> tuple[list]:
 
     return moves
 
-def pawn(sqnum: int8, board: array) -> list[int8]:
+def pawn(sqnum: int, board: array) -> list[int]:
     colour: str = pieceColour(getPiece(sqnum, board))
-    moves: list[int8] = []
+    moves: list[int] = []
 
     direction: int = int(colour == 'b')*2 - 1
 
@@ -414,51 +419,51 @@ def pawnSpecial(sqnum, board: array) -> tuple[list]:
 ### Main Function(s)
 
 def isInCheck(colour: str, board: array) -> bool:
-    kingSquare: int8 = findKing(colour, board)
+    kingSquare: int = findKing(colour, board)
     if kingSquare == None: return None
 
     oppColour: str = opponentColour(colour)
     
     # bishop/queen
-    sqnums: list[int8] = bishop(kingSquare, board)
+    sqnums: list[int] = bishop(kingSquare, board)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
     if pieceInt(oppColour + 'B') in pieces: print('Bishop checks the king!'); return True
     if pieceInt(oppColour + 'Q') in pieces: print('Queen checks the king!');  return True
     
     # roook/queen
-    sqnums: list[int8] = rook(kingSquare, board)
+    sqnums: list[int] = rook(kingSquare, board)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
     if pieceInt(oppColour + 'R') in pieces: print('Rook checks the king!');   return True
     if pieceInt(oppColour + 'Q') in pieces: print('Queen checks the king!');  return True
     
     # knight
-    sqnums: list[int8] = knight(kingSquare, board)
+    sqnums: list[int] = knight(kingSquare, board)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
     if pieceInt(oppColour + 'N') in pieces: print('Knight checks the king!'); return True
     
     # king
-    sqnums: list[int8] = king(kingSquare, board)
+    sqnums: list[int] = king(kingSquare, board)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
     if pieceInt(oppColour + 'K') in pieces: print('King checks the king!');   return True
 
     # pawn
-    sqnums: list[int8] = pawn(kingSquare, board)
+    sqnums: list[int] = pawn(kingSquare, board)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
     if pieceInt(oppColour + 'P') in pieces: print('Pawn checks the king!');   return True
     
     return False
 
 # ensures user input is converted to its full representation
-def getMove(move: list[list], specialMoves: tuple[list], board: array) -> tuple[int8]:
+def getMove(move: list[int], specialMoves: tuple[list], board: array) -> tuple[int]:
     specialMovesSimple: list[list] = [m[:2] for m in specialMoves]
 
     if move in specialMovesSimple:
         i: int = specialMovesSimple.index(move)
-        return specialMoves[i]
+        return tuple(specialMoves[i])
 
-    return tuple([square2num(square) for square in copy(move)])
+    return tuple(copy(move))
 
-def legalMove(move: tuple[int8], possibleMoves: list[list], board: array) -> bool:
+def legalMove(move: tuple[int], possibleMoves: list[list], board: array) -> bool:
     sqnum1 = sqnum2 = 0
     
     if len(move) in [2,3]:
@@ -498,14 +503,11 @@ def legalMove(move: tuple[int8], possibleMoves: list[list], board: array) -> boo
 
     return not any([not inMoveSet, inCheck])
 
-def movePiece(sqnum1: int8, sqnum2: int8, board: array) -> bool:
-    s1: tuple = num2square(sqnum1)
-    s2: tuple = num2square(sqnum2)
+def movePiece(sqnum1: int, sqnum2: int, board: array) -> bool:
+    board[sqnum2] = getPiece(sqnum1, board)
+    board[sqnum1] = EMPTY
 
-    board[*s2] = getPiece(sqnum1, board)
-    board[*s1] = EMPTY
-
-def movePieceSpecial(move: list[int8], board: array):
+def movePieceSpecial(move: list[int], board: array):
     if len(move) == 3: # en passant
         movePiece(*move[:2], board)
         remPiece(move[2], board)
@@ -529,7 +531,7 @@ def animatedMove(squares: list[list]):
     assert(len(squares) == 4)
 
     moves, specialMoves = possibleMoves(sequence.squares[0], board)
-    move: tuple[int8] = getMove(squares[1:3], specialMoves, board)
+    move: tuple[int] = getMove(squares[1:3], specialMoves, board)
     
     if legalMove(move, [moves, specialMoves], board):
         if len(move) in [2, 3]:
@@ -576,7 +578,9 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
         return
 
     buttonClicked: str = getMouseButtonStr(mouse_buttons)
-    mouseSqnum: int8 = getMouseSqnum(mouse_IJ_rel)
+    mouseSqnum: int = getMouseSqnum(mouse_IJ_rel)
+
+    print(mouseSqnum)
 
     if buttonClicked == None: return
 
@@ -607,7 +611,7 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
                 sequence.clear()
             elif sequence.squares[0] != sequence.squares[1]:
                 moves, specialMoves = possibleMoves(sequence.squares[0], board)
-                move: tuple[int8] = getMove(sequence.squares, specialMoves, board)
+                move: tuple[int] = getMove(sequence.squares, specialMoves, board)
 
                 if legalMove(move, [moves, specialMoves], board):
                     if len(move) == 2:
@@ -679,7 +683,7 @@ if __name__ == "__main__":
     import graphics as g
 
 
-    def mouseRel(win_dims: tuple[int]) -> tuple[int]:
+    def getMouseRel(win_dims: tuple[int]) -> tuple[int]:
         return tuple([int(v) for v in array(p.mouse.get_pos()) - array(win_dims)])
 
     win = p.display.set_mode((800,800))
@@ -692,10 +696,10 @@ if __name__ == "__main__":
             if e.type == p.QUIT:
                 exit()
             elif e.type in (p.MOUSEBUTTONDOWN, p.MOUSEBUTTONUP):
-                updateGame(p.mouse.get_pressed(), mouseRel((win_x, win_y)))
+                updateGame(p.mouse.get_pressed(), getMouseRel((win_x, win_y)))
     
     
-        screen = updateGraphics(mouseRel((win_x, win_y)))
+        screen = updateGraphics(getMouseRel((win_x, win_y)))
         win.blit(screen, (win_x, win_y))
         p.display.update()
 
