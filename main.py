@@ -255,9 +255,9 @@ def clickInRange(mouse_IJ_rel: list[int]) -> bool:
 
 ### Piece movement functions
 
-def rook(sqnum: int, board: array) -> list[list]:
+def rook(sqnum: int, board: array, colour: str=None) -> list[list]:
     tracker: list[bool] = [True, True, True, True]
-    colour: str = pieceColour(getPiece(sqnum, board))
+    if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[int] = []
 
     for i in range(1,8):
@@ -285,8 +285,8 @@ def rook(sqnum: int, board: array) -> list[list]:
 
     return moves
 
-def knight(sqnum: int, board: array) -> list[int]:
-    colour: str = pieceColour(getPiece(sqnum, board))
+def knight(sqnum: int, board: array, colour: str=None) -> list[int]:
+    if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[int] = []
 
 
@@ -308,9 +308,9 @@ def knight(sqnum: int, board: array) -> list[int]:
 
     return moves
 
-def bishop(sqnum: int, board: array) -> list[int]:
+def bishop(sqnum: int, board: array, colour: str=None) -> list[int]:
     tracker: list[bool] = [True, True, True, True]
-    colour: str = pieceColour(getPiece(sqnum, board))
+    if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[int] = []
 
     for i in range(1,8):
@@ -338,11 +338,11 @@ def bishop(sqnum: int, board: array) -> list[int]:
 
     return moves
 
-def queen(sqnum: int, board: array) -> list[int]:
-    return bishop(sqnum, board) + rook(sqnum, board)
+def queen(sqnum: int, board: array, colour: str=None) -> list[int]:
+    return bishop(sqnum, board, colour=colour) + rook(sqnum, board, colour=colour)
 
-def king(sqnum: int, board: array) -> list[int]:
-    colour: str = pieceColour(getPiece(sqnum, board))
+def king(sqnum: int, board: array, colour: str=None) -> list[int]:
+    if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[list[int]] = []
 
     # surrounding 8 squares
@@ -357,26 +357,44 @@ def king(sqnum: int, board: array) -> list[int]:
 
     return moves
 
-def kingSpecial(sqnum: int, board: array) -> tuple[list]:
-    colour: str = pieceColour(getPiece(sqnum, board))
-    moves: tuple[list] = []
+def kingSpecial(sqnum: int, board: array, colour: str=None) -> tuple[list]:
+    if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
+    moves: list = []
 
     # castling logic
     rank = 7 if colour == 'w' else 0
 
     start: int = addrow(0,rank)
     slce: slice = slice(start, start + 8)
+    rng: list = list(range(64))
 
     queenside: bool = not any(castleTracker[colour][0:2]) and all(board[slce][1:4] == pieceInts(('e','e','e')))
+    notAttackedQS: bool = not any([isAttacked(sqnum, colour, board) for sqnum in rng[slce][1:4]])
     kingside:  bool = not any(castleTracker[colour][1:3]) and all(board[slce][5:7] == pieceInts(('e','e')))
+    notAttackedKS: bool = not any([isAttacked(sqnum, colour, board) for sqnum in rng[slce][5:7]])
 
-    if queenside: moves.append([sqnum, *addcols(sqnum, [-2,-4,-1])])
-    if kingside:  moves.append([sqnum, *addcols(sqnum, [ 2, 3, 1])])
+    # print(rng[slce][1:4])
+    # print(rng[slce][5:7])
+    # print([isAttacked(sqnum, colour, board) for sqnum in rng[slce][1:4]])
+    # print([isAttacked(sqnum, colour, board) for sqnum in rng[slce][5:7]])
+    # printBoard(board)
+    if notAttackedQS:
+        print("Not attacked QS")
+    else:
+        print("Attacked QS!!!")
+    if notAttackedKS:
+        print("Not attacked KS")
+    else:
+        print("Attacked KS!!!")
+
+
+    if queenside and notAttackedQS: moves.append([sqnum, *addcols(sqnum, [-2,-4,-1])])
+    if kingside  and notAttackedKS: moves.append([sqnum, *addcols(sqnum, [ 2, 3, 1])])
 
     return moves
 
-def pawn(sqnum: int, board: array) -> list[int]:
-    colour: str = pieceColour(getPiece(sqnum, board))
+def pawn(sqnum: int, board: array, colour: str=None) -> list[int]:
+    if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[int] = []
 
     direction: int = 1 if colour == 'b' else -1
@@ -408,8 +426,8 @@ def pawn(sqnum: int, board: array) -> list[int]:
         
     return moves
 
-def pawnSpecial(sqnum, board: array) -> tuple[list]:
-    colour: str = pieceColour(getPiece(sqnum, board))
+def pawnSpecial(sqnum, board: array, colour: str=None) -> tuple[list]:
+    if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     direction: int = int(colour == 'b')*2 - 1
     moves: list = []
     
@@ -437,39 +455,69 @@ def pawnSpecial(sqnum, board: array) -> tuple[list]:
 ### Main Function(s)
 
 def isInCheck(colour: str, board: array) -> bool:
-    kingSquare: int = findKing(colour, board)
-    if kingSquare == None: return None
+    kingSqnum: int = findKing(colour, board)
+    if kingSqnum == None: return None
 
+    inCheck: int = isAttacked(kingSqnum, colour, board)
+
+    match inCheck:
+        case 1:
+            print('Bishop checks the king!')
+        case 2:
+            print('Queen checks the king!')
+        case 3:
+            print('Rook checks the king!')
+        case 4:
+            print('Knight checks the king!')
+        case 5:
+            print('King checks the king!')
+        case 6:
+            print('Pawn checks the king!')
+        case 0:
+            pass
+        case _:
+            print("Undefined behaviour!")
+            raise TypeError
+        
+    return bool(inCheck)
+
+
+# check if colour is under attack on sqnum
+def isAttacked(sqnum: int, colour: str, board: array) -> int:
     oppColour: str = opponentColour(colour)
-    
+
     # bishop/queen
-    sqnums: list[int] = bishop(kingSquare, board)
+    sqnums: list[int] = bishop(sqnum, board, colour=colour)
+    print("DEBUG")
+    print(sqnum)
+    print(colour)
+    print(sqnums)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
-    if pieceInt(oppColour + 'B') in pieces: print('Bishop checks the king!'); return True
-    if pieceInt(oppColour + 'Q') in pieces: print('Queen checks the king!');  return True
+    if pieceInt(oppColour + 'B') in pieces: return 1
+    if pieceInt(oppColour + 'Q') in pieces: return 2
     
     # roook/queen
-    sqnums: list[int] = rook(kingSquare, board)
+    sqnums: list[int] = rook(sqnum, board, colour=colour)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
-    if pieceInt(oppColour + 'R') in pieces: print('Rook checks the king!');   return True
-    if pieceInt(oppColour + 'Q') in pieces: print('Queen checks the king!');  return True
+    if pieceInt(oppColour + 'R') in pieces: return 3
+    if pieceInt(oppColour + 'Q') in pieces: print('Queen checks the king!');  return 2
     
     # knight
-    sqnums: list[int] = knight(kingSquare, board)
+    sqnums: list[int] = knight(sqnum, board, colour=colour)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
-    if pieceInt(oppColour + 'N') in pieces: print('Knight checks the king!'); return True
+    if pieceInt(oppColour + 'N') in pieces: print('Knight checks the king!'); return 4
     
     # king
-    sqnums: list[int] = king(kingSquare, board)
+    sqnums: list[int] = king(sqnum, board, colour=colour)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
-    if pieceInt(oppColour + 'K') in pieces: print('King checks the king!');   return True
+    if pieceInt(oppColour + 'K') in pieces: print('King checks the king!');   return 5
 
     # pawn
-    sqnums: list[int] = pawn(kingSquare, board)
+    sqnums: list[int] = pawn(sqnum, board, colour=colour)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
-    if pieceInt(oppColour + 'P') in pieces: print('Pawn checks the king!');   return True
+    if pieceInt(oppColour + 'P') in pieces: print('Pawn checks the king!');   return 6
     
-    return False
+    return 0
 
 # ensures user input is converted to its full representation
 def getMove(move: list[int], specialMoves: tuple[list], board: array) -> tuple[int]:
