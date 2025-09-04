@@ -155,6 +155,30 @@ def opponentColour(colour: str) -> str:
 
 
 
+### Interface Classes
+def getThemes():
+    pass
+
+def setTheme():
+    pass
+
+def goBackOneMove():
+    pass
+
+def goForwardOneMove():
+    pass
+
+def getBoard():
+    pass
+
+def setBoard():
+    pass
+
+def playMove():
+    pass
+
+
+
 ### Piece management
 
 def pieceStr(integer: int) -> str:
@@ -373,23 +397,8 @@ def kingSpecial(sqnum: int, board: array, colour: str=None) -> tuple[list]:
     kingside:  bool = not any(castleTracker[colour][1:3]) and all(board[slce][5:7] == pieceInts(('e','e')))
     notAttackedKS: bool = not any([isAttacked(sqnum, colour, board) for sqnum in rng[slce][5:7]])
 
-    # print(rng[slce][1:4])
-    # print(rng[slce][5:7])
-    # print([isAttacked(sqnum, colour, board) for sqnum in rng[slce][1:4]])
-    # print([isAttacked(sqnum, colour, board) for sqnum in rng[slce][5:7]])
-    # printBoard(board)
-    if notAttackedQS:
-        print("Not attacked QS")
-    else:
-        print("Attacked QS!!!")
-    if notAttackedKS:
-        print("Not attacked KS")
-    else:
-        print("Attacked KS!!!")
-
-
-    if queenside and notAttackedQS: moves.append([sqnum, *addcols(sqnum, [-2,-4,-1])])
-    if kingside  and notAttackedKS: moves.append([sqnum, *addcols(sqnum, [ 2, 3, 1])])
+    if queenside and notAttackedQS: moves.append((sqnum, *addcols(sqnum, [-2,-4,-1])))
+    if kingside  and notAttackedKS: moves.append((sqnum, *addcols(sqnum, [ 2, 3, 1])))
 
     return moves
 
@@ -435,7 +444,8 @@ def pawnSpecial(sqnum, board: array, colour: str=None) -> tuple[list]:
     row, col = num2square(sqnum)
 
     if len(moveLog) > 0:
-        lastMove = moveLog[-1] #num2square(moveLog[-1])
+        lastMove = moveLog[-1]
+
         if pieceType(getPiece(lastMove[1], board)) == 'P':
             lmrow1, _ = num2square(lastMove[0])
             lmrow2, lmcol2 = num2square(lastMove[1])
@@ -445,10 +455,9 @@ def pawnSpecial(sqnum, board: array, colour: str=None) -> tuple[list]:
             rightPosition = (colour == 'w' and row == 3) or (colour == 'b' and row == 4)
 
             if abs(coldiff) == 1 and abs(rowdiff) == 2 and rightPosition:
-                moves.append([sqnum, addrow(addcol(sqnum, coldiff), direction), addcol(sqnum, coldiff)])
+                moves.append((sqnum, addrow(addcol(sqnum, coldiff), direction), addcol(sqnum, coldiff)))
             
     return moves
-
 
 
 
@@ -481,17 +490,13 @@ def isInCheck(colour: str, board: array) -> bool:
         
     return bool(inCheck)
 
-
 # check if colour is under attack on sqnum
 def isAttacked(sqnum: int, colour: str, board: array) -> int:
     oppColour: str = opponentColour(colour)
 
     # bishop/queen
     sqnums: list[int] = bishop(sqnum, board, colour=colour)
-    print("DEBUG")
-    print(sqnum)
-    print(colour)
-    print(sqnums)
+    
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
     if pieceInt(oppColour + 'B') in pieces: return 1
     if pieceInt(oppColour + 'Q') in pieces: return 2
@@ -520,14 +525,15 @@ def isAttacked(sqnum: int, colour: str, board: array) -> int:
     return 0
 
 # ensures user input is converted to its full representation
-def getMove(move: list[int], specialMoves: tuple[list], board: array) -> tuple[int]:
+def getMove(move: tuple[int], specialMoves: list[tuple], board: array) -> tuple[int]:
     specialMovesSimple: list[list] = [m[:2] for m in specialMoves]
-
-    if move in specialMovesSimple:
-        i: int = specialMovesSimple.index(move)
+    m: tuple[int] = tuple(move)
+    
+    if m in specialMovesSimple:
+        i: int = specialMovesSimple.index(m)
         return tuple(copy(specialMoves[i]))
 
-    return tuple(copy(move))
+    return copy(m)
 
 def legalMove(move: tuple[int], possibleMoves: list[list], board: array) -> bool:
     sqnum1 = sqnum2 = 0
@@ -675,7 +681,7 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
                 sequence.clear()
             elif sequence.squares[0] != sequence.squares[1]:
                 moves, specialMoves = possibleMoves(sequence.squares[0], board)
-                move: tuple[int] = getMove(sequence.squares, specialMoves, board)
+                move: tuple[int] = getMove(tuple(sequence.squares), specialMoves, board)
 
                 if legalMove(move, [moves, specialMoves], board):
                     if len(move) == 2:
@@ -703,7 +709,7 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
         # animated piece moves
         elif sequence.active == sequences[2]:
             if isTurn(getPiece(sequence.squares[0], board), turn):
-                animatedMove(sequence.squares)
+                animatedMove(tuple(sequence.squares))
                 promotionLogic(sequence.squares[1:3], board)
 
             sequence.clear()
@@ -714,6 +720,7 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
         print(f"Game over! {'White' if turn else 'Black'} wins!")
         gameover = True
             
+
 
 
 

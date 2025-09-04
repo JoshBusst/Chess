@@ -39,10 +39,9 @@ def newArrow(sqnum1: int, sqnum2: int) -> p.Surface | p.Rect:
 
     v1 = array(num2pos(sqnum1))
     v2 = array(num2pos(sqnum2))
-    
+
     u: array[int] = v2 - v1
     umag: int = round(sqrt(u.dot(u))) + centreOffset
-    uhat: array = u/umag
     angle: float = atan2(*u)
 
     head_x: int = SQUARE_SIZE//3
@@ -65,12 +64,12 @@ def newArrow(sqnum1: int, sqnum2: int) -> p.Surface | p.Rect:
     p.draw.polygon(arrow, HIGHLIGHT_SECONDARY, points)
     
     # arrow head graphics
-    rotatedArrow: p.Surface = p.transform.rotate(arrow, -degrees(angle))
+    rotatedArrow: p.Surface = p.transform.rotate(arrow, degrees(angle) - 90)
     width: int = rotatedArrow.get_width()
     height: int = rotatedArrow.get_height()
 
-    cent_x, cent_y = v1 + uhat*umag/2
-    rect = p.Rect(cent_x + (SQUARE_SIZE - height)/2, cent_y + (SQUARE_SIZE - width)/2, width, height)
+    cent_x, cent_y = v1 + u/2
+    rect = p.Rect(cent_x + (SQUARE_SIZE - width)/2, cent_y + (SQUARE_SIZE - height)/2, width, height)
 
     rotatedArrow.set_alpha(180)
 
@@ -266,9 +265,6 @@ def textSprite(text: str, fontSize: int=12, colour: p.Color=BLACK, font: str='ca
 # Core functions
 
 def addArrow(sqnum1: int, sqnum2: int) -> None:
-    print("Debug arrow")
-    print(sqnum1)
-    print(sqnum2)
     arrow, arrowRect = newArrow(sqnum1, sqnum2)
     arrID = arrowID(sqnum1, sqnum2)
 
