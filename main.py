@@ -162,10 +162,10 @@ def getThemes():
 def setTheme():
     pass
 
-def goBackOneMove():
+def getMoveHistory():
     pass
 
-def goForwardOneMove():
+def historySet():
     pass
 
 def getBoard():
@@ -175,6 +175,12 @@ def setBoard():
     pass
 
 def playMove():
+    pass
+
+def importFEN():
+    pass
+
+def exportFEN():
     pass
 
 
@@ -245,13 +251,12 @@ def checkmate(turn: bool, board: array):
 
         if pieceColour(piece) == kingColour:
             moves, specialMoves = possibleMoves(sqnum, board)
-
             for move in moves:
-                if legalMove([sqnum, move], possibleMoves(sqnum, board), board):
+                if legalMove([sqnum, move], moves, specialMoves, board):
                     return False
 
             for move in specialMoves:
-                if legalMove(move, possibleMoves(sqnum, board), board):
+                if legalMove(move, moves, specialMoves, board):
                     return False
 
     return True
@@ -279,7 +284,7 @@ def clickInRange(mouse_IJ_rel: list[int]) -> bool:
 
 ### Piece movement functions
 
-def rook(sqnum: int, board: array, colour: str=None) -> list[list]:
+def rook(sqnum: int, board: array, colour: str=None) -> list[int]:
     tracker: list[bool] = [True, True, True, True]
     if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[int] = []
@@ -381,7 +386,7 @@ def king(sqnum: int, board: array, colour: str=None) -> list[int]:
 
     return moves
 
-def kingSpecial(sqnum: int, board: array, colour: str=None) -> tuple[list]:
+def kingSpecial(sqnum: int, board: array, colour: str=None) -> list[tuple]:
     if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list = []
 
@@ -435,7 +440,7 @@ def pawn(sqnum: int, board: array, colour: str=None) -> list[int]:
         
     return moves
 
-def pawnSpecial(sqnum, board: array, colour: str=None) -> tuple[list]:
+def pawnSpecial(sqnum, board: array, colour: str=None) -> list[tuple]:
     if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     direction: int = int(colour == 'b')*2 - 1
     moves: list = []
@@ -465,6 +470,7 @@ def pawnSpecial(sqnum, board: array, colour: str=None) -> tuple[list]:
 
 def isInCheck(colour: str, board: array) -> bool:
     kingSqnum: int = findKing(colour, board)
+    print(f"Black king is on sq {kingSqnum}" if colour == 'b' else f"White king is on sq {kingSqnum}")
     if kingSqnum == None: return None
 
     inCheck: int = isAttacked(kingSqnum, colour, board)
@@ -505,22 +511,22 @@ def isAttacked(sqnum: int, colour: str, board: array) -> int:
     sqnums: list[int] = rook(sqnum, board, colour=colour)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
     if pieceInt(oppColour + 'R') in pieces: return 3
-    if pieceInt(oppColour + 'Q') in pieces: print('Queen checks the king!');  return 2
+    if pieceInt(oppColour + 'Q') in pieces: return 2
     
     # knight
     sqnums: list[int] = knight(sqnum, board, colour=colour)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
-    if pieceInt(oppColour + 'N') in pieces: print('Knight checks the king!'); return 4
+    if pieceInt(oppColour + 'N') in pieces: return 4
     
     # king
     sqnums: list[int] = king(sqnum, board, colour=colour)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
-    if pieceInt(oppColour + 'K') in pieces: print('King checks the king!');   return 5
+    if pieceInt(oppColour + 'K') in pieces: return 5
 
     # pawn
     sqnums: list[int] = pawn(sqnum, board, colour=colour)
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
-    if pieceInt(oppColour + 'P') in pieces: print('Pawn checks the king!');   return 6
+    if pieceInt(oppColour + 'P') in pieces: return 6
     
     return 0
 
@@ -535,45 +541,67 @@ def getMove(move: tuple[int], specialMoves: list[tuple], board: array) -> tuple[
 
     return copy(m)
 
-def legalMove(move: tuple[int], possibleMoves: list[list], board: array) -> bool:
-    sqnum1 = sqnum2 = 0
+def legalMove(move: tuple[int], moves: list[tuple], specialMoves: list[tuple], board: array) -> bool:
+    colour: str = pieceColour(getPiece(move[0], board))
+
+    if move[1] in moves or move in specialMoves:
+        p_board = copy(board)
+        
+        if len(move) == 2:
+            movePiece(*move, p_board)
+        else:
+            movePieceSpecial(move, p_board)
+
+        inCheck: bool = isInCheck(colour, p_board)
+        if inCheck == None or inCheck == True:
+            return False
+        
+        return True
+        
+    return False
+
+    # sqnum1 = sqnum2 = 0
+    # verbose = True
     
-    if len(move) in [2,3]:
-        sqnum1, sqnum2 = move[:2]
-    else:
-        sqnum1, sqnum2 = move[2:4]
+    # if len(move) in [2,3]:
+    #     sqnum1, sqnum2 = move[:2]
+    # else:
+    #     sqnum1, sqnum2 = move[2:4]
 
-    piece1 = getPiece(sqnum1, board)
-    piece2 = getPiece(sqnum2, board)
+    # piece1 = getPiece(sqnum1, board)
+    # piece2 = getPiece(sqnum2, board)
 
-    # basic legality checks
-    isEmpty:    bool = bool(piece1 == EMPTY)
-    sameColour: bool = pieceColour(piece1) == pieceColour(piece2)
+    # # basic legality checks
+    # isEmpty:    bool = bool(piece1 == EMPTY)
+    # sameColour: bool = pieceColour(piece1) == pieceColour(piece2)
 
-    if isEmpty or sameColour: return False
+    # if isEmpty or sameColour:
+    #     if verbose: print("First square is empty or pieces are same colour!")
+    #     return False
 
 
-    # ensure move is in possible moveset
-    inMoveSet: bool = False
-    moves, specialMoves = possibleMoves
+    # # ensure move is in possible moveset
+    # inMoveSet: bool = False
 
-    if sqnum2 in moves:
-        inMoveSet = True
-    elif move in specialMoves:
-        inMoveSet = True
+    # if sqnum2 in moves:
+    #     inMoveSet = True
+    # elif move in specialMoves:
+    #     inMoveSet = True
     
 
-    # ensure check does not occur post-move
-    p_board = copy(board)
-    if len(move) == 2:
-        movePiece(*move, p_board)
-    else:
-        movePieceSpecial(move, p_board)
+    # # ensure check does not occur post-move
+    # p_board = copy(board)
+    # if len(move) == 2:
+    #     movePiece(*move, p_board)
+    # else:
+    #     movePieceSpecial(move, p_board)
 
-    inCheck: bool = isInCheck(pieceColour(piece1), p_board)
-    if inCheck == None: return False
+    # inCheck: bool = isInCheck(pieceColour(piece1), p_board)
+    # if inCheck == None:
+    #     if verbose: print("Is in check after the move!")
+    #     return False
 
-    return not any([not inMoveSet, inCheck])
+    # return not any([not inMoveSet, inCheck])
 
 def movePiece(sqnum1: int, sqnum2: int, board: array) -> bool:
     board[sqnum2] = getPiece(sqnum1, board)
@@ -605,7 +633,7 @@ def animatedMove(squares: list[list]):
     moves, specialMoves = possibleMoves(sequence.squares[0], board)
     move: tuple[int] = getMove(squares[1:3], specialMoves, board)
     
-    if legalMove(move, [moves, specialMoves], board):
+    if legalMove(move, moves, specialMoves, board):
         if len(move) in [2, 3]:
             point1 = g.num2pos(move[0])
             point2 = g.num2pos(move[1])
@@ -674,6 +702,7 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
     
 
     if any([sequence.match(seq) for seq in sequences]):
+        print("Black is in check!" if isInCheck('b', board) else "Black is not in check.")
         if sequence.active == sequences[0]:
             piece: int = getPiece(sequence.squares[0], board)
 
@@ -683,7 +712,7 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
                 moves, specialMoves = possibleMoves(sequence.squares[0], board)
                 move: tuple[int] = getMove(tuple(sequence.squares), specialMoves, board)
 
-                if legalMove(move, [moves, specialMoves], board):
+                if legalMove(move, moves, specialMoves, board):
                     if len(move) == 2:
                         movePiece(*move, board)
                     else:
