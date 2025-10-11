@@ -6,6 +6,7 @@ import graphics as g
 from ui import getMouseButtonStr
 from copy import copy
 from time import time_ns
+from random import randint
 
 
 
@@ -57,12 +58,33 @@ class Sequence:
     def match(self, matchSeq: list) -> bool:
         if len(self.active) > len(matchSeq): return False
 
-        return not any([self.active[i] != matchSeq[i] for i in range(len(self.active))])
+        return all([self.active[i] == matchSeq[i] for i in range(len(self.active))])
 
     def add(self, buttonStr: str, sqnum: int):
         self.active.append(buttonStr)
         self.squares.append(sqnum)
 
+
+
+class Player:
+    colour: str
+    name: str
+
+    def __init__(self, name: str, colour: str):
+        self.name = name
+        self.colour = colour
+
+
+
+def agentMove(agent: Player, board: array):
+    print('agent moves')
+    moves = getAllPossibleMoves(agent.colour, board)
+    print(moves)
+
+    for move in moves:
+        g.addArrow(*move)
+
+    return moves[randint(0,len(moves)-1)]
 
 
 ### Miscellaneous helper functions
@@ -129,11 +151,14 @@ def addcols(sqnum: int, adds: list[int]) -> list[int]:
 def getMouseSqnum(mouse_IJ: tuple[int]) -> int:
     return g.pos2num_dyna(mouse_IJ)
 
-def validSquare(sqnum: int) -> bool:
+def validSqnum(sqnum: int) -> bool:
     return sqnum >= 0 and sqnum < 64
 
-def validSquares(sqnums: list[int]) -> bool:
-    return any([validSquare(sqnum) for sqnum in sqnums])
+def validSquare(sq):
+    return sq[0] < 8 and sq[0] >= 0 and sq[1] < 8 and sq[1] >= 0
+
+def validSqnums(sqnums: list[int]) -> bool:
+    return any([validSqnum(sqnum) for sqnum in sqnums])
 
 def isTurn(piece: int, turn: bool) -> bool:
     if piece == EMPTY or None: return False
@@ -142,6 +167,9 @@ def isTurn(piece: int, turn: bool) -> bool:
 def nextTurn() -> None:
     global turn
     turn = not turn
+
+def playerTurn(player: Player):
+    return turn == (player.colour == 'w')
 
 def findKing(colour: str, board: array) -> int:
     result = where(board == pieceInt(colour + 'K'))
@@ -199,7 +227,7 @@ def pieceInt(string: str) -> int:
 def pieceInts(strings: list[str]) -> array:
     return array([pieceInt(i) for i in strings])
 
-def possibleMoves(sqnum: int, board: array) -> list[list]:
+def possibleMoves(sqnum: int, board: array) -> list | list:
     piece: int = getPiece(sqnum, board)
     if piece == EMPTY: return []
 
@@ -210,13 +238,13 @@ def possibleMoves(sqnum: int, board: array) -> list[list]:
     return moves, moves_special
 
 def getPiece(sqnum: int, board: array) -> int:
-    if validSquare(sqnum): return board[sqnum]
+    if validSqnum(sqnum): return board[sqnum]
 
 def remPiece(sqnum: int, board: array) -> None:
-    if validSquare(sqnum): board[sqnum] = EMPTY
+    if validSqnum(sqnum): board[sqnum] = EMPTY
 
 def setPiece(sqnum: int, board: array, piece: int) -> None:
-    if validSquare(sqnum): board[sqnum] = piece
+    if validSqnum(sqnum): board[sqnum] = piece
 
 def pieceColour(piece: int) -> str:
     return pieceStr(piece)[0]
@@ -271,6 +299,21 @@ def getSpecialMoves(sqnum: list[int], board: array):
     
     return []
 
+def getAllPossibleMoves(colour: str, board: array):
+    allMoves: list = []
+    count = 0
+
+    for sqnum in range(64):
+        if pieceColour(getPiece(sqnum, board)) == colour:
+            count += 1
+            moves, specialMoves = possibleMoves(sqnum, board)
+
+            allMoves += specialMoves
+            allMoves += [[int(sqnum), move] for move in moves]
+
+    print(f"{count} pieces counted!")
+    return allMoves
+
 def clickInRange(mouse_IJ_rel: list[int]) -> bool:
     if mouse_IJ_rel[0] < 0 or mouse_IJ_rel[0] > g.SCREEN_DIMS[0]:
         return False
@@ -279,6 +322,9 @@ def clickInRange(mouse_IJ_rel: list[int]) -> bool:
         return False
     
     return True
+
+def getMouseRel(win_dims: tuple[int]) -> tuple[int]:
+    return tuple([int(v) for v in array(p.mouse.get_pos()) - array(win_dims)])
 
 
 
@@ -289,26 +335,35 @@ def rook(sqnum: int, board: array, colour: str=None) -> list[int]:
     if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[int] = []
 
+    row, col = num2square(sqnum)
+
     for i in range(1,8):
-        sqnums = [
-            addcol(sqnum, i),
-            addcol(sqnum,-i),
-            addrow(sqnum, i),
-            addrow(sqnum,-i),
+        squares = [
+            [row, col + i],
+            [row, col - i],
+            [row + i, col],
+            [row - i, col],
         ]
         
-        for i, sq in enumerate(sqnums):
-            if validSquare(sq):
-                opColour = pieceColour(getPiece(sq, board))
+        # sqnums = [
+        #     addcol(sqnum, i),
+        #     addcol(sqnum,-i),
+        #     addrow(sqnum, i),
+        #     addrow(sqnum,-i),
+        # ]
+        
+        for i, square in enumerate(squares):
+            if validSquare(square):
+                opColour = pieceColour(getPiece(square2num(square), board))
 
                 if opColour not in [colour, 'e'] and tracker[i]:
-                    moves.append(sq)
+                    moves.append(square)
                     tracker[i] = False
                 elif opColour == colour:
                     tracker[i] = False
                 
                 if tracker[i]:
-                    moves.append(sq)
+                    moves.append(square2num(square))
             
             if not any(tracker): break
 
@@ -318,22 +373,38 @@ def knight(sqnum: int, board: array, colour: str=None) -> list[int]:
     if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[int] = []
 
-
-    sqnums: list[int] = [
-        addrow(addcol(sqnum,  1),  2),
-        addrow(addcol(sqnum, -1),  2),
-        addrow(addcol(sqnum,  2),  1),
-        addrow(addcol(sqnum, -2),  1),
-        addrow(addcol(sqnum,  1), -2),
-        addrow(addcol(sqnum, -1), -2),
-        addrow(addcol(sqnum,  2), -1),
-        addrow(addcol(sqnum, -2), -1),
+    row, col = num2square(sqnum)
+    squares = [
+        [row - 2, col - 1],
+        [row - 2, col + 1],
+        [row - 1, col - 2],
+        [row - 1, col + 2],
+        [row + 1, col - 2],
+        [row + 1, col + 2],
+        [row + 2, col - 1],
+        [row + 2, col + 1],
     ]
+
+    for square in squares:
+        if validSquare(square):
+            if pieceColour(getPiece(square2num(square), board)) != colour:
+                moves.append(square2num(square))
+
+    # sqnums: list[int] = [
+    #     addrow(addcol(sqnum,  1),  2),
+    #     addrow(addcol(sqnum, -1),  2),
+    #     addrow(addcol(sqnum,  2),  1),
+    #     addrow(addcol(sqnum, -2),  1),
+    #     addrow(addcol(sqnum,  1), -2),
+    #     addrow(addcol(sqnum, -1), -2),
+    #     addrow(addcol(sqnum,  2), -1),
+    #     addrow(addcol(sqnum, -2), -1),
+    # ]
     
-    for sq in sqnums:
-        if validSquare(sq):
-            if pieceColour(getPiece(sq, board)) != colour:
-                moves.append(sq)
+    # for sq in sqnums:
+    #     if validSqnum(sq):
+    #         if pieceColour(getPiece(sq, board)) != colour:
+    #             moves.append(sq)
 
     return moves
 
@@ -342,26 +413,35 @@ def bishop(sqnum: int, board: array, colour: str=None) -> list[int]:
     if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[int] = []
 
+    row, col = num2square(sqnum)
+
     for i in range(1,8):
-        sqnums = [
-            addrow(addcol(sqnum,  i),  i),
-            addrow(addcol(sqnum, -i),  i),
-            addrow(addcol(sqnum,  i), -i),
-            addrow(addcol(sqnum, -i), -i),
+        squares = [
+            [row + i, col + i],
+            [row - i, col + i],
+            [row + i, col - i],
+            [row - i, col + i],
         ]
+        # sqnums = [square2num(sq) for sq in squares]
+        # sqnums = [
+        #     addrow(addcol(sqnum,  i),  i),
+        #     addrow(addcol(sqnum, -i),  i),
+        #     addrow(addcol(sqnum,  i), -i),
+        #     addrow(addcol(sqnum, -i), -i),
+        # ]
         
-        for i, sq in enumerate(sqnums):
-            if validSquare(sq):
-                opColour = pieceColour(getPiece(sq, board))
+        for i, square in enumerate(squares):
+            if validSquare(square):
+                opColour = pieceColour(getPiece(square2num(square), board))
 
                 if opColour not in [colour, 'e'] and tracker[i]:
-                    moves.append(sq)
+                    moves.append(square)
                     tracker[i] = False
                 elif opColour == colour:
                     tracker[i] = False
                 
                 if tracker[i]:
-                    moves.append(sq)
+                    moves.append(square2num(square))
 
             if not any(tracker): break
 
@@ -374,15 +454,20 @@ def king(sqnum: int, board: array, colour: str=None) -> list[int]:
     if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[list[int]] = []
 
+    row, col = num2square(sqnum)
+
     # surrounding 8 squares
-    sqnums: list[int] = flatten([
-        [addrow(addcol(sqnum, i), j) for j in range(-1,2) if not(i==j==0)] for i in range(-1,2)
+    # sqnums: list[int] = flatten([
+    #     [addrow(addcol(sqnum, i), j) for j in range(-1,2) if not(i==j==0)] for i in range(-1,2)
+    # ])
+    squares: list[int] = flatten([
+        [[row + i, col + j] for j in range(-1,2) if not(i==j==0)] for i in range(-1,2)
     ])
     
-    for sq in sqnums:
-        if validSquare(sq):
-            if pieceColour(getPiece(sq, board)) != colour:
-                moves.append(sq)
+    for square in squares:
+        if validSquare(square):
+            if pieceColour(getPiece(square2num(square), board)) != colour:
+                moves.append(square2num(square))
 
     return moves
 
@@ -410,6 +495,7 @@ def kingSpecial(sqnum: int, board: array, colour: str=None) -> list[tuple]:
 def pawn(sqnum: int, board: array, colour: str=None) -> list[int]:
     if colour == None: colour: str = pieceColour(getPiece(sqnum, board))
     moves: list[int] = []
+    row, col = num2square(sqnum)
 
     direction: int = 1 if colour == 'b' else -1
 
@@ -427,16 +513,21 @@ def pawn(sqnum: int, board: array, colour: str=None) -> list[int]:
             break
 
     # attack squares
+    # attackSquares = [
+    #     addrow(addcol(sqnum,  1), direction),
+    #     addrow(addcol(sqnum, -1), direction),
+    # ]
     attackSquares = [
-        addrow(addcol(sqnum,  1), direction),
-        addrow(addcol(sqnum, -1), direction),
+        [row + direction, col + 1],
+        [row + direction, col - 1],
     ]
-
+    
     for attack in attackSquares:
-        piece = getPiece(attack, board)
+        if validSquare(attack):
+            piece = getPiece(square2num(attack), board)
 
-        if piece not in [None, EMPTY] and pieceColour(piece) != colour:
-            moves.append(attack)
+            if piece not in [None, EMPTY] and pieceColour(piece) != colour:
+                moves.append(square2num(attack))
         
     return moves
 
@@ -667,7 +758,21 @@ def updateGraphics(mouse_IJ: tuple[int]) -> p.Surface:
     
     return win
 
-def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
+def hoverLogic(buttonClicked: str, mouseSqnum: int) -> None:
+    """Serialised handler for hover logic. Runs per frame"""
+    hover.clear()
+    g.clearLayer(g.animationLayer)
+
+    if buttonClicked == 'ldown':
+        g.clearUserStyling()
+        piece: int = getPiece(mouseSqnum, board)
+
+        if isTurn(piece, turn) and playerTurn(player):
+            hover.set(piece, mouseSqnum)
+            sequence.clear()
+            sequence.add(buttonClicked, mouseSqnum)
+
+def handleUserInputs(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
     global gameover
     if gameover: return
 
@@ -684,50 +789,24 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
 
     sequence.add(buttonClicked, mouseSqnum)
     
-
     # manage hovering pieces
-    hover.clear()
-    g.clearLayer(g.animationLayer)
-
-    if buttonClicked == 'ldown':
-        g.clearUserStyling()
-        piece: int = getPiece(mouseSqnum, board)
-
-        if isTurn(piece, turn):
-            hover.set(piece, mouseSqnum)
-            sequence.clear()
-            sequence.add(buttonClicked, mouseSqnum)
+    hoverLogic(buttonClicked, mouseSqnum)
         
     if sequence.active[0] in ['lup','rup']: sequence.clear()
-    
 
     if any([sequence.match(seq) for seq in sequences]):
-        print("Black is in check!" if isInCheck('b', board) else "Black is not in check.")
-        if sequence.active == sequences[0]:
+        if sequence.active == ['ldown', 'lup']:
             piece: int = getPiece(sequence.squares[0], board)
 
-            if piece == EMPTY or not isTurn(piece, turn):
+            if piece == EMPTY or not isTurn(piece, turn) or not playerTurn(player):
                 sequence.clear()
             elif sequence.squares[0] != sequence.squares[1]:
-                moves, specialMoves = possibleMoves(sequence.squares[0], board)
-                move: tuple[int] = getMove(tuple(sequence.squares), specialMoves, board)
-
-                if legalMove(move, moves, specialMoves, board):
-                    if len(move) == 2:
-                        movePiece(*move, board)
-                    else:
-                        movePieceSpecial(move, board)
-
-                    moveLog.append((move))
-                    promotionLogic(sequence.squares, board)
-                    nextTurn()
-                else:
-                    print("ILLEGAL MOVE!")
+                updateGame(sequence.squares)
 
                 sequence.clear()
 
         # handle arrows and highlights
-        elif sequence.active == sequences[1]:
+        elif sequence.active == ['rdown', 'rup']:
             if sequence.squares[0] == sequence.squares[1]:
                 g.addSquareHighlight(sequence.squares[0])
             else:
@@ -736,19 +815,37 @@ def updateGame(mouse_buttons: tuple[int], mouse_IJ_rel: tuple[int]) -> None:
             sequence.clear()
 
         # animated piece moves
-        elif sequence.active == sequences[2]:
+        elif sequence.active == ['ldown', 'lup', 'ldown', 'lup']:
             if isTurn(getPiece(sequence.squares[0], board), turn):
                 animatedMove(tuple(sequence.squares))
                 promotionLogic(sequence.squares[1:3], board)
 
             sequence.clear()
+        else:
+            pass # we do not clear sequence in this case!
     else:
         sequence.clear()
 
+def updateGame(move: tuple[int]):
+    moves, specialMoves = possibleMoves(move[0], board)
+    move: tuple[int] = getMove(move, specialMoves, board)
+
+    if legalMove(move, moves, specialMoves, board):
+        if len(move) == 2:
+            movePiece(*move, board)
+        else:
+            movePieceSpecial(move, board)
+
+        moveLog.append((move))
+        promotionLogic(move, board)
+        nextTurn()
+    else:
+        print("ILLEGAL MOVE!")
+        
     if checkmate(turn, board):
+        global gameover
         print(f"Game over! {'White' if turn else 'Black'} wins!")
         gameover = True
-            
 
 
 
@@ -765,6 +862,7 @@ fps_count: int = 0
 last_time: float = 0
 nano: int = 10**9
 gameover: bool = False
+player: Player = Player('player','w')
 
 # tracks the left rooks, king, and right rooks and if they have moved
 castleTracker: dict[str, list] = {'w': [False, False, False], 'b': [False, False, False]}
@@ -796,7 +894,7 @@ if __name__ == "__main__":
             if e.type == p.QUIT:
                 exit()
             elif e.type in (p.MOUSEBUTTONDOWN, p.MOUSEBUTTONUP):
-                updateGame(p.mouse.get_pressed(), getMouseRel((win_x, win_y)))
+                handleUserInputs(p.mouse.get_pressed(), getMouseRel((win_x, win_y)))
     
     
         screen = updateGraphics(getMouseRel((win_x, win_y)))

@@ -164,28 +164,28 @@ DATA_FILE: str = 'openings-repo.txt'
 
 if __name__ == "__main__":
     # Reading a PGN
-    pgns = []
-    pgns.append("1.e4 e5 2.Nf3 Nc6 3.Bc5 Nf6 4.Ng5 d5")
-    pgns.append("1.e4 e5 2.Nf3 Nc6 3.Bc5 Nf6 4.Nc3")
-    pgns.append("1.e4 c6 2.d4 d5 3.f3 e6")
+    # pgns = []
+    # pgns.append("1.e4 e5 2.Nf3 Nc6 3.Bc5 Nf6 4.Ng5 d5")
+    # pgns.append("1.e4 e5 2.Nf3 Nc6 3.Bc5 Nf6 4.Nc3")
+    # pgns.append("1.e4 c6 2.d4 d5 3.f3 e6")
 
-    root = Root("e4")
+    # root = Root("e4")
 
-    tree: Tree = Tree(root)
-    for pgn in pgns: tree.merge(pgn)
+    # tree: Tree = Tree(root)
+    # for pgn in pgns: tree.merge(pgn)
 
 
-    # print tree
-    print(str(tree))
+    # # print tree
+    # print(str(tree))
 
 
     from main import *
     import pygame as p
     import graphics as g
+    from time import sleep
 
 
-    def getMouseRel(win_dims: tuple[int]) -> tuple[int]:
-        return tuple([int(v) for v in array(p.mouse.get_pos()) - array(win_dims)])
+    agent: Player = Player('agent','b')
 
     win = p.display.set_mode((800,800))
     p.init()
@@ -197,8 +197,12 @@ if __name__ == "__main__":
             if e.type == p.QUIT:
                 exit()
             elif e.type in (p.MOUSEBUTTONDOWN, p.MOUSEBUTTONUP):
-                updateGame(p.mouse.get_pressed(), getMouseRel((win_x, win_y)))
+                handleUserInputs(p.mouse.get_pressed(), getMouseRel((win_x, win_y)))
     
+        if playerTurn(agent):
+            move = agentMove(agent, board)
+            print(move)
+            updateGame(move)
     
         screen = updateGraphics(getMouseRel((win_x, win_y)))
         win.blit(screen, (win_x, win_y))
