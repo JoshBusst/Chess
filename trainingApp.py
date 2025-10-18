@@ -179,13 +179,14 @@ if __name__ == "__main__":
     # print(str(tree))
 
 
-    from main import *
+    import main as chess
     import pygame as p
     import graphics as g
     from time import sleep
 
 
-    agent: Player = Player('agent','b')
+    agent: chess.Player = chess.Player('agent','b')
+    turnHad = False # ensure only one turn per loop
 
     win = p.display.set_mode((800,800))
     p.init()
@@ -197,34 +198,43 @@ if __name__ == "__main__":
             if e.type == p.QUIT:
                 exit()
             elif e.type in (p.MOUSEBUTTONDOWN, p.MOUSEBUTTONUP):
-                handleUserInputs(p.mouse.get_pressed(), getMouseRel((win_x, win_y)))
+                chess.handleUserInputs(p.mouse.get_pressed(), chess.getMouseRel((win_x, win_y)))
+                turnHad = True
+                
+        if chess.playerTurn(agent) and not turnHad:
+            move = chess.agentMove(agent, chess.board)
+            chess.updateGame(move)
+            turnHad = True
     
-        if playerTurn(agent):
-            move = agentMove(agent, board)
-            print(move)
-            updateGame(move)
-    
-        screen = updateGraphics(getMouseRel((win_x, win_y)))
+        screen = chess.updateGraphics(chess.getMouseRel((win_x, win_y)))
         win.blit(screen, (win_x, win_y))
         p.display.update()
 
+        if turnHad:
+            if chess.checkmate(chess.turn, chess.board):
+                print(f"Game over! {'White' if not chess.turn else 'Black'} wins!")
+                chess.gameover = True
+                exit()
+
+        turnHad = False
+
         # track FPS
-        time = time_ns()
-        fps_tracker.pop(0)
-        fps_tracker.append(nano/(time - last_time))
+        time = chess.time_ns()
+        chess.fps_tracker.pop(0)
+        chess.fps_tracker.append(chess.nano/(time - chess.last_time))
         
-        last_time = time
+        chess.last_time = time
 
         # draw avg fps at a custom rate (in Hz)
-        if fps_count > TARGET_FPS//5:
-            fps_count = 0
+        if chess.fps_count > chess.TARGET_FPS//5:
+            chess.fps_count = 0
 
             g.clearLayer(g.extrasLayer)
-            fps_avg: float = str(round(sum(fps_tracker)/len(fps_tracker)))
+            fps_avg: float = str(round(sum(chess.fps_tracker)/len(chess.fps_tracker)))
             g.drawSprite(g.extrasLayer, g.textSprite(str(fps_avg)), (2,2))
         else:
-            fps_count += 1
+            chess.fps_count += 1
 
-        clock.tick(TARGET_FPS)
+        chess.clock.tick(chess.TARGET_FPS)
     
     

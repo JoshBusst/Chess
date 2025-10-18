@@ -77,12 +77,12 @@ class Player:
 
 
 def agentMove(agent: Player, board: array):
+    moves = getAllLegalMoves(agent.colour, board)
     print('agent moves')
-    moves = getAllPossibleMoves(agent.colour, board)
     print(moves)
 
-    for move in moves:
-        g.addArrow(*move)
+    # for move in moves:
+    #     g.addArrow(*move)
 
     return moves[randint(0,len(moves)-1)]
 
@@ -230,9 +230,10 @@ def pieceInts(strings: list[str]) -> array:
 def possibleMoves(sqnum: int, board: array) -> list | list:
     piece: int = getPiece(sqnum, board)
     if piece == EMPTY: return []
-
+    
     moveFunc: callable = MOVE_FUNCTIONS[pieceStr(piece)[1]]
     moves: list[list] = moveFunc(sqnum, board)
+    
     moves_special: list[list] = getSpecialMoves(sqnum, board)
 
     return moves, moves_special
@@ -267,29 +268,35 @@ def promotionLogic(move: list[int], board: array) -> None:
 def checkmate(turn: bool, board: array):
     colour: str = 'w' if turn else 'b'
 
-    if not isInCheck(colour, board): return False
+    if not isInCheck(colour, board):
+        return False
 
     kingSqnum: int = findKing(colour, board)
-    kingColour: str = pieceColour(getPiece(kingSqnum, board))
+    moves, _ = possibleMoves(kingSqnum, board)
 
-    moves, specialMoves = possibleMoves(kingSqnum, board)
+    legals: list[tuple] = legalMoves([(kingSqnum, move) for move in moves], moves, board)
 
-    for sqnum in range(64):
-        piece: int = getPiece(sqnum, board)
+    if len(legals) == 0:
+        return True
+    
+    return False
 
-        if pieceColour(piece) == kingColour:
-            moves, specialMoves = possibleMoves(sqnum, board)
-            for move in moves:
-                if legalMove([sqnum, move], moves, specialMoves, board):
-                    return False
+    # for sqnum in range(64):
+    #     piece: int = getPiece(sqnum, board)
 
-            for move in specialMoves:
-                if legalMove(move, moves, specialMoves, board):
-                    return False
+    #     if pieceColour(piece) == kingColour:
+    #         moves, specialMoves = possibleMoves(sqnum, board)
+    #         for move in moves:
+    #             if legalMove([sqnum, move], moves, specialMoves, board):
+    #                 return False
 
-    return True
+    #         for move in specialMoves:
+    #             if legalMove(move, moves, specialMoves, board):
+    #                 return False
 
-def getSpecialMoves(sqnum: list[int], board: array):
+    # return True
+
+def getSpecialMoves(sqnum: int, board: array):
     piece: int = getPiece(sqnum, board)
 
     if pieceType(piece) == "K":
@@ -298,6 +305,19 @@ def getSpecialMoves(sqnum: list[int], board: array):
         return pawnSpecial(sqnum, board)
     
     return []
+
+def getAllLegalMoves(colour: str, board: array):
+    legals: list = []
+    count = 0
+
+    for sqnum in range(64):
+        if pieceColour(getPiece(sqnum, board)) == colour:
+            count += 1
+            moves, specialMoves = possibleMoves(sqnum, board)
+            legals += legalMoves([(sqnum, move) for move in moves], moves + specialMoves, board)
+
+    # print(f"{count} pieces counted!")
+    return legals
 
 def getAllPossibleMoves(colour: str, board: array):
     allMoves: list = []
@@ -311,7 +331,7 @@ def getAllPossibleMoves(colour: str, board: array):
             allMoves += specialMoves
             allMoves += [[int(sqnum), move] for move in moves]
 
-    print(f"{count} pieces counted!")
+    # print(f"{count} pieces counted!")
     return allMoves
 
 def clickInRange(mouse_IJ_rel: list[int]) -> bool:
@@ -357,7 +377,7 @@ def rook(sqnum: int, board: array, colour: str=None) -> list[int]:
                 opColour = pieceColour(getPiece(square2num(square), board))
 
                 if opColour not in [colour, 'e'] and tracker[i]:
-                    moves.append(square)
+                    moves.append(square2num(square))
                     tracker[i] = False
                 elif opColour == colour:
                     tracker[i] = False
@@ -420,7 +440,7 @@ def bishop(sqnum: int, board: array, colour: str=None) -> list[int]:
             [row + i, col + i],
             [row - i, col + i],
             [row + i, col - i],
-            [row - i, col + i],
+            [row - i, col - i],
         ]
         # sqnums = [square2num(sq) for sq in squares]
         # sqnums = [
@@ -435,7 +455,7 @@ def bishop(sqnum: int, board: array, colour: str=None) -> list[int]:
                 opColour = pieceColour(getPiece(square2num(square), board))
 
                 if opColour not in [colour, 'e'] and tracker[i]:
-                    moves.append(square)
+                    moves.append(square2num(square))
                     tracker[i] = False
                 elif opColour == colour:
                     tracker[i] = False
@@ -561,29 +581,29 @@ def pawnSpecial(sqnum, board: array, colour: str=None) -> list[tuple]:
 
 def isInCheck(colour: str, board: array) -> bool:
     kingSqnum: int = findKing(colour, board)
-    print(f"Black king is on sq {kingSqnum}" if colour == 'b' else f"White king is on sq {kingSqnum}")
+    # print(f"Black king is on sq {kingSqnum}" if colour == 'b' else f"White king is on sq {kingSqnum}")
     if kingSqnum == None: return None
 
     inCheck: int = isAttacked(kingSqnum, colour, board)
 
-    match inCheck:
-        case 1:
-            print('Bishop checks the king!')
-        case 2:
-            print('Queen checks the king!')
-        case 3:
-            print('Rook checks the king!')
-        case 4:
-            print('Knight checks the king!')
-        case 5:
-            print('King checks the king!')
-        case 6:
-            print('Pawn checks the king!')
-        case 0:
-            pass
-        case _:
-            print("Undefined behaviour!")
-            raise TypeError
+    # match inCheck:
+    #     case 1:
+    #         print('Bishop checks the king!')
+    #     case 2:
+    #         print('Queen checks the king!')
+    #     case 3:
+    #         print('Rook checks the king!')
+    #     case 4:
+    #         print('Knight checks the king!')
+    #     case 5:
+    #         print('King checks the king!')
+    #     case 6:
+    #         print('Pawn checks the king!')
+    #     case 0:
+    #         pass
+    #     case _:
+    #         print("Undefined behaviour!")
+    #         raise TypeError
         
     return bool(inCheck)
 
@@ -593,7 +613,6 @@ def isAttacked(sqnum: int, colour: str, board: array) -> int:
 
     # bishop/queen
     sqnums: list[int] = bishop(sqnum, board, colour=colour)
-    
     pieces: list[int] = [getPiece(sqnum, board) for sqnum in sqnums]
     if pieceInt(oppColour + 'B') in pieces: return 1
     if pieceInt(oppColour + 'Q') in pieces: return 2
@@ -648,7 +667,7 @@ def legalMove(move: tuple[int], moves: list[tuple], specialMoves: list[tuple], b
             return False
         
         return True
-        
+    
     return False
 
     # sqnum1 = sqnum2 = 0
@@ -693,6 +712,15 @@ def legalMove(move: tuple[int], moves: list[tuple], specialMoves: list[tuple], b
     #     return False
 
     # return not any([not inMoveSet, inCheck])
+
+def legalMoves(moves: tuple[int], allPossibleMoves: list[tuple], board: array):
+    legals: list[tuple] = []
+
+    for move in moves:
+        if legalMove(move, allPossibleMoves, [], board):
+            legals.append(move)
+
+    return legals
 
 def movePiece(sqnum1: int, sqnum2: int, board: array) -> bool:
     board[sqnum2] = getPiece(sqnum1, board)
@@ -841,11 +869,6 @@ def updateGame(move: tuple[int]):
         nextTurn()
     else:
         print("ILLEGAL MOVE!")
-        
-    if checkmate(turn, board):
-        global gameover
-        print(f"Game over! {'White' if turn else 'Black'} wins!")
-        gameover = True
 
 
 
